@@ -433,7 +433,7 @@ static void search_sig(sdr_ch_t *ch, double time, const sdr_buff_t *buff,
     float *fd_ext_bins = NULL;
     int n = ch->acq->len_fds;
     
-    if (ch->acq->fd_ext != 0.0) { // assist by external Doppler
+    if (ch->acq->fd_ext != 0.0 || ch->acq->fd_ext_n > 0) {
         int nw = (ch->acq->fd_ext_n > 0) ? ch->acq->fd_ext_n : 3;
         fd_ext_bins = (float *)sdr_malloc(sizeof(float) * nw);
         for (int k = 0; k < nw; k++) {
