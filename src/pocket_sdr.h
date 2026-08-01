@@ -24,6 +24,7 @@
 //  2026-07-05  1.16 ver.0.18
 //  2026-07-19  1.17 support extended coherent tracking for pilot signals
 //  2026-07-24  1.18 support up to 8 output streams with selectable types
+//  2026-08-01  1.19 add Web UI server APIs (sdr_web.c)
 //
 #ifndef POCKET_SDR_H
 #define POCKET_SDR_H
@@ -125,6 +126,7 @@ typedef struct {int8_t  I, Q;} sdr_cpx16_t; // 16(8+8)   bits complex type
 typedef struct {int32_t I, Q;} sdr_cpx64_t; // 64(32+32) bits complex type
 typedef float sdr_cpx_t[2];      // single precision complex type
 typedef struct sdr_lpf_tag sdr_lpf_t; // LPF type
+typedef struct sdr_web_tag sdr_web_t; // Web UI server type
 
 #ifdef WIN32
 typedef HANDLE sdr_thread_t;     // thread type
@@ -611,6 +613,11 @@ int sdr_rcv_set_gain(sdr_rcv_t *rcv, int ch, int gain);
 int sdr_rcv_get_filt(sdr_rcv_t *rcv, int ch, double *bw, double *freq,
     int *order);
 int sdr_rcv_set_filt(sdr_rcv_t *rcv, int ch, double bw, double freq, int order);
+
+// sdr_web.c
+sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
+    const char *html_dir);
+void sdr_web_stop(sdr_web_t *web);
 
 #ifdef __cplusplus
 }

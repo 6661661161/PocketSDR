@@ -74,7 +74,7 @@ CFLAGS = -O3 $(INCLUDE) $(OPTIONS) -Wall -fPIC -g
 
 OBJ = sdr_cmn.o sdr_func.o sdr_code.o sdr_code_gal.o sdr_ch.o \
       sdr_nav.o sdr_pvt.o sdr_rcv.o sdr_fec.o sdr_ldpc.o sdr_nb_ldpc.o \
-      sdr_usb.o sdr_dev.o sdr_conf.o sdr_sdev.o sdr_array.o
+      sdr_usb.o sdr_dev.o sdr_conf.o sdr_sdev.o sdr_array.o sdr_web.o
 
 TARGET = libsdr.so libsdr.a
 
@@ -116,6 +116,8 @@ sdr_sdev.o : $(SRC)/sdr_sdev.c
 	$(CC) -c $(CFLAGS) $<
 sdr_array.o : $(SRC)/sdr_array.c
 	$(CC) -c $(CFLAGS) $<
+sdr_web.o : $(SRC)/sdr_web.c
+	$(CC) -c $(CFLAGS) $<
 
 sdr_cmn.o  : $(SRC)/pocket_sdr.h
 sdr_func.o : $(SRC)/pocket_sdr.h
@@ -132,6 +134,7 @@ sdr_dev.o  : $(SRC)/pocket_sdr.h
 sdr_conf.o : $(SRC)/pocket_sdr.h
 sdr_sdev.o : $(SRC)/pocket_sdr.h
 sdr_array.o : $(SRC)/pocket_sdr.h
+sdr_web.o  : $(SRC)/pocket_sdr.h
 
 clean:
 	rm -f $(TARGET) *.o

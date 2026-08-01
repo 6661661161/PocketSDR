@@ -26,6 +26,7 @@
 //  2025-03-16  1.10 add -opt option, delete -w option
 //  2026-07-24  1.11 support up to 8 output streams by repeating -nmea, -rtcm,
 //                   -log and -raw options
+//  2026-08-01  1.12 add -web and -html options for Web UI
 //
 #include <math.h>
 #include <signal.h>
@@ -53,7 +54,7 @@ static const char *usage_text[] = {
     "       [-toff toff] [-ti tint] [-p bus,[,port] [-c conf_file]",
     "       [-driver name] [-gain gain] [-bw bw] [-fd dopp]",
     "       [-log path] [-nmea path] [-rtcm path] [-raw path] ... [-opt file]",
-    "       [file]",
+    "       [-web [addr:]port] [-html dir] [file]",
     NULL
 };
 
@@ -193,7 +194,11 @@ int main(int argc, char **argv)
     const char *driver = "";
     double gain = 0.0, bw = 0.0, max_dop = 0.0;
     char rfch_opt[1024] = "-RFCH";
-    
+    sdr_web_t *web = NULL;
+    char web_addr[64] = "";
+    int web_port = 0;
+    const char *html_dir = "";
+
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-sig") && i + 1 < argc) {
             sig = argv[++i];
@@ -266,6 +271,17 @@ int main(int argc, char **argv)
             bw = atof(argv[++i]);
         } else if (!strcmp(argv[i], "-fd") && i + 1 < argc) {
             max_dop = atof(argv[++i]);
+        } else if (!strcmp(argv[i], "-web") && i + 1 < argc) {
+            const char *str = argv[++i], *p = strrchr(str, ':');
+            if (p) {
+                snprintf(web_addr, sizeof(web_addr), "%.*s", (int)(p - str),
+                    str);
+                web_port = atoi(p + 1);
+            } else {
+                web_port = atoi(str);
+            }
+        } else if (!strcmp(argv[i], "-html") && i + 1 < argc) {
+            html_dir = argv[++i];
         } else if (!strcmp(argv[i], "-v")) {
             print_ver();
         } else if (argv[i][0] == '-') {
@@ -314,6 +330,14 @@ int main(int argc, char **argv)
     if (!rcv) {
         return -1;
     }
+    if (web_port > 0) {
+        if ((web = sdr_web_start(rcv, web_addr, web_port, html_dir))) {
+            printf("Web UI: http://%s:%d/\n",
+                *web_addr ? web_addr : "127.0.0.1", web_port);
+        } else {
+            fprintf(stderr, "web server start error port=%d\n", web_port);
+        }
+    }
     if (tint > 0.0) {
         printf("%s", ESC_HCUR);
     }
@@ -328,6 +352,7 @@ int main(int argc, char **argv)
         printf("  TIME(s) = %.3f\n", (sdr_get_tick() - tt) * 1e-3);
         printf("%s", ESC_VCUR);
     }
+    sdr_web_stop(web);
     sdr_rcv_close(rcv);
     
     if (*debug_file) {
