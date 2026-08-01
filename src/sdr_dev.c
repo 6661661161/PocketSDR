@@ -130,8 +130,7 @@ static void rise_pri(void)
     if (h == 0) {
         fprintf(stderr, "AvSetMmThreadCharacteristicsA error (%d)\n",
             (int)GetLastError());
-    }
-    else if (!AvSetMmThreadPriority(h, AVRT_PRIORITY_CRITICAL)) {
+    } else if (!AvSetMmThreadPriority(h, AVRT_PRIORITY_CRITICAL)) {
         fprintf(stderr, "AvSetMmThreadPriority error (%d)\n",
             (int)GetLastError());
     }
@@ -372,8 +371,7 @@ int sdr_dev_read(sdr_dev_t *dev, uint8_t *buff, int size)
     
     if (rp + size <= BUFF_SIZE) {
         memcpy(buff, dev->buff + rp, size);
-    }
-    else {
+    } else {
         memcpy(buff, dev->buff + rp, BUFF_SIZE - rp);
         memcpy(buff + BUFF_SIZE - rp, dev->buff, size - BUFF_SIZE + rp);
     }
@@ -418,8 +416,7 @@ int sdr_dev_get_info(sdr_dev_t *dev, int *fmt, double *fs, double *fo, int *IQ,
             }
             if (i == 0) *fs = fss;
         }
-    }
-    else { // Pocket SDR FE
+    } else { // Pocket SDR FE
         int ver = data[0] >> 4; // 1-2: FE 2CH, 3: FE 4CH, 4: FE 8CH
         *fmt = (ver <= 2) ? SDR_FMT_RAW8 : ((ver <= 3) ? SDR_FMT_RAW16 : SDR_FMT_RAW32);
         nch = (ver <= 2) ? 2 : ((ver <= 3) ? 4 : 8);
@@ -461,8 +458,7 @@ int sdr_dev_set_gain(sdr_dev_t *dev, int ch, int gain)
         reg1[2] = (reg1[2] & ~0x18) + (2 << 3); // AGCMODE = 2
         reg2[0] = (reg2[0] & ~0x0F) + (((gain - 1) >> 2) & 0x0F); // GAININ[5:2]
         reg2[1] = (reg2[1] & ~0xC0) + (((gain - 1) << 6) & 0xC0); // GAININ[1:0]
-    }
-    else { // AGC
+    } else { // AGC
         reg1[2] = (reg1[2] & ~0x18); // AGCMODE = 0
     }
     // write MAX2771 registers
@@ -484,8 +480,7 @@ int sdr_dev_get_gain(sdr_dev_t *dev, int ch)
     }
     if (((reg1[2] >> 3) & 0x03) == 2) { // manual gain
         return ((reg2[0] & 0x0F) << 2) + (reg2[1] >> 6) + 1;
-    }
-    else { // AGC
+    } else { // AGC
         return 0;
     }
 }

@@ -2512,26 +2512,19 @@ int sdr_decode_LDPC(const char *type, const uint8_t *syms, int N,
     }
     if (!strcmp(type, "CNV2_SF2")) {
         return decode_LDPC_CNV2_SF2(syms, syms_dec);
-    }
-    else if (!strcmp(type, "CNV2_SF3")) {
+    } else if (!strcmp(type, "CNV2_SF3")) {
         return decode_LDPC_CNV2_SF3(syms, syms_dec);
-    }
-    else if (!strcmp(type, "BCNV1_SF2")) {
+    } else if (!strcmp(type, "BCNV1_SF2")) {
         return decode_LDPC_BCNV1_SF2(syms, syms_dec);
-    }
-    else if (!strcmp(type, "BCNV1_SF3")) {
+    } else if (!strcmp(type, "BCNV1_SF3")) {
         return decode_LDPC_BCNV1_SF3(syms, syms_dec);
-    }
-    else if (!strcmp(type, "BCNV2")) {
+    } else if (!strcmp(type, "BCNV2")) {
         return decode_LDPC_BCNV2(syms, syms_dec);
-    }
-    else if (!strcmp(type, "BCNV3")) {
+    } else if (!strcmp(type, "BCNV3")) {
         return decode_LDPC_BCNV3(syms, syms_dec);
-    }
-    else if (!strcmp(type, "IRNV1_SF2")) {
+    } else if (!strcmp(type, "IRNV1_SF2")) {
         return decode_LDPC_IRNV1_SF2(syms, syms_dec);
-    }
-    else if (!strcmp(type, "IRNV1_SF3")) {
+    } else if (!strcmp(type, "IRNV1_SF3")) {
         return decode_LDPC_IRNV1_SF3(syms, syms_dec);
     }
     return -1;
