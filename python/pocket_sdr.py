@@ -1369,7 +1369,7 @@ def update_bbch_page(p):
 # C/N0 bar ---------------------------------------------------------------------
 def bar_cn0(cn0, width):
     bar_max = (width - 6) // tkfont.Font(font=get_font()).measure('|')
-    return '|' * int(np.clip(bar_max * (cn0 - 30.0) / 20.0, 1, bar_max))
+    return '|' * int(np.clip(bar_max * (cn0 - 25.0) / 25.0, 1, bar_max)) # 25-50
 
 # generate Correlator page -----------------------------------------------------
 def corr_page_new(parent):
