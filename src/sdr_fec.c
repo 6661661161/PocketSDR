@@ -346,7 +346,6 @@ void sdr_decode_conv(const uint8_t *data, int N, uint8_t *dec_data)
     for (int i = 0; i < nbits; i++) {
         dec_data[i] = (bits[i / 8] >> (7 - i % 8)) & 1;
     }
-    
     sdr_free(bits);
     sdr_free(new_metric);
     sdr_free(metric);
