@@ -15,6 +15,11 @@ export const SYS_COLOR = {          // satellite system colors
     I: '#007777', S: '#777777'
 };
 
+export const SYS_COLOR2 = {         // pale variants (not used in PVT)
+    G: '#88AA88', R: '#F8CC88', E: '#EE88EE', J: '#8888CC', C: '#E08888',
+    I: '#88BBBB', S: '#BBBBBB'
+};
+
 // tick step in 1-2-2.5-5 series -----------------------------------------------
 function tickStep(span, maxTicks) {
     const raw = span / Math.max(2, maxTicks);
@@ -23,6 +28,23 @@ function tickStep(span, maxTicks) {
         if (raw <= m * mag * 1.0001) return m * mag;
     }
     return 10 * mag;
+}
+
+// tick step for time axis (s) -------------------------------------------------
+function timeStep(span, maxTicks) {
+    for (const s of [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600,
+        7200, 10800, 21600, 43200]) {
+        if (span / s <= Math.max(2, maxTicks)) return s;
+    }
+    return 86400;
+}
+
+// time label hh:mm:ss ---------------------------------------------------------
+function timeLabel(t) {
+    t = ((Math.round(t) % 86400) + 86400) % 86400;
+    const z = (v) => (v < 10 ? '0' : '') + v;
+    return z(Math.floor(t / 3600)) + ':' + z(Math.floor(t % 3600 / 60)) +
+        ':' + z(Math.floor(t % 60));
 }
 
 // tick positions within limits ------------------------------------------------
@@ -81,22 +103,27 @@ export class Plot {
         this.ys = ys;
         this.xc = (this.ax[0] + this.ax[2]) / 2;
         this.yc = (this.ax[1] + this.ax[3]) / 2;
-        this.xt = tickStep(this.xlim[1] - this.xlim[0],
-            (this.ax[2] - this.ax[0]) / 55);
+        this.xt = (this.opt.taxis ? timeStep : tickStep)(
+            this.xlim[1] - this.xlim[0],
+            (this.ax[2] - this.ax[0]) / (this.opt.taxis ? 75 : 55));
         this.yt = tickStep(this.ylim[1] - this.ylim[0],
             (this.ax[3] - this.ax[1]) / 35);
         ctx.strokeStyle = GR;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (const x of tickList(this.xlim, this.xt)) {
-            const px = Math.round(this.xp(x)) + 0.5;
-            ctx.moveTo(px, this.ax[1]);
-            ctx.lineTo(px, this.ax[3]);
+        if (this.opt.xticks !== false) {
+            for (const x of tickList(this.xlim, this.xt)) {
+                const px = Math.round(this.xp(x)) + 0.5;
+                ctx.moveTo(px, this.ax[1]);
+                ctx.lineTo(px, this.ax[3]);
+            }
         }
-        for (const y of tickList(this.ylim, this.yt)) {
-            const py = Math.round(this.yp(y)) + 0.5;
-            ctx.moveTo(this.ax[0], py);
-            ctx.lineTo(this.ax[2], py);
+        if (this.opt.yticks !== false) {
+            for (const y of tickList(this.ylim, this.yt)) {
+                const py = Math.round(this.yp(y)) + 0.5;
+                ctx.moveTo(this.ax[0], py);
+                ctx.lineTo(this.ax[2], py);
+            }
         }
         ctx.stroke();
         ctx.save();
@@ -118,23 +145,28 @@ export class Plot {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         const dec = (t) => Math.max(0, -Math.floor(Math.log10(t) + 1e-9));
-        for (const x of tickList(this.xlim, this.xt)) {
-            const px = Math.round(this.xp(x)) + 0.5;
-            ctx.beginPath();
-            ctx.moveTo(px, this.ax[3]);
-            ctx.lineTo(px, this.ax[3] - 5);
-            ctx.stroke();
-            ctx.fillText(x.toFixed(dec(this.xt)), px, this.ax[3] + 4);
+        if (this.opt.xticks !== false) {
+            for (const x of tickList(this.xlim, this.xt)) {
+                const px = Math.round(this.xp(x)) + 0.5;
+                ctx.beginPath();
+                ctx.moveTo(px, this.ax[3]);
+                ctx.lineTo(px, this.ax[3] - 5);
+                ctx.stroke();
+                ctx.fillText(this.opt.taxis ? timeLabel(x) :
+                    x.toFixed(dec(this.xt)), px, this.ax[3] + 4);
+            }
         }
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        for (const y of tickList(this.ylim, this.yt)) {
-            const py = Math.round(this.yp(y)) + 0.5;
-            ctx.beginPath();
-            ctx.moveTo(this.ax[0], py);
-            ctx.lineTo(this.ax[0] + 5, py);
-            ctx.stroke();
-            ctx.fillText(y.toFixed(dec(this.yt)), this.ax[0] - 4, py);
+        if (this.opt.yticks !== false) {
+            for (const y of tickList(this.ylim, this.yt)) {
+                const py = Math.round(this.yp(y)) + 0.5;
+                ctx.beginPath();
+                ctx.moveTo(this.ax[0], py);
+                ctx.lineTo(this.ax[0] + 5, py);
+                ctx.stroke();
+                ctx.fillText(y.toFixed(dec(this.yt)), this.ax[0] - 4, py);
+            }
         }
         if (this.opt.title) {
             ctx.font = FONT_B;
@@ -218,6 +250,29 @@ export class Plot {
         ctx.textAlign = ax || 'center';
         ctx.textBaseline = ay || 'middle';
         ctx.fillText(str, px, py);
+    }
+    // circle in data coordinates with pixel radius
+    circle(x, y, rpx, stroke, fill) {
+        const ctx = this.ctx;
+        ctx.beginPath();
+        ctx.arc(this.xp(x), this.yp(y), rpx, 0, 2 * Math.PI);
+        if (fill) {
+            ctx.fillStyle = fill;
+            ctx.fill();
+        }
+        if (stroke) {
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+    // bar between y0 and y1 in data coordinates with pixel width
+    barY(x, y0, y1, wpix, color) {
+        const ctx = this.ctx;
+        ctx.fillStyle = color;
+        const px = this.xp(x), py0 = this.yp(y0), py1 = this.yp(y1);
+        ctx.fillRect(px - wpix / 2, Math.min(py0, py1), wpix,
+            Math.abs(py0 - py1));
     }
     // downward triangle mark in data coordinates
     mark(x, y, size, color) {

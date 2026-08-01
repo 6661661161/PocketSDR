@@ -614,35 +614,40 @@ static void send_rfch_stat(sdr_web_t *web, web_cli_t *cli)
     ws_send_text(cli, buff);
 }
 
-// send IF data histogram topic ------------------------------------------------
+// send IF data histogram topic (rfch = 0: all RF CHs) -------------------------
 static void send_hist(sdr_web_t *web, web_cli_t *cli, web_sub_t *sub)
 {
     char *buff = web->json_buff;
-    double stat[8], hist1[256], hist2[256] = {0};
-    int val[256], n;
+    int ch1 = sub->rfch ? sub->rfch : 1;
+    int ch2 = sub->rfch ? sub->rfch : SDR_MAX_BUFF;
 
-    int nval = sdr_rcv_rfch_hist(web->rcv, sub->rfch, sub->tave, val, hist1,
-        hist2);
-    if (nval <= 0) return;
-    int IQ = sdr_rcv_rfch_stat(web->rcv, sub->rfch, stat) ? (int)stat[4] : 1;
-    n = snprintf(buff, JSON_BUFF_SIZE, "{\"type\":\"hist\",\"rfch\":%d,"
-        "\"IQ\":%d,\"val\":[", sub->rfch, IQ);
-    for (int i = 0; i < nval; i++) {
-        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%d", i ? "," : "",
-            val[i]);
+    for (int ch = ch1; ch <= ch2; ch++) {
+        double stat[8], hist1[256], hist2[256] = {0};
+        int val[256], n;
+        if (!sdr_rcv_rfch_stat(web->rcv, ch, stat)) break;
+        int IQ = (int)stat[4];
+        int nval = sdr_rcv_rfch_hist(web->rcv, ch, sub->tave, val, hist1,
+            hist2);
+        if (nval <= 0) continue;
+        n = snprintf(buff, JSON_BUFF_SIZE, "{\"type\":\"hist\",\"rfch\":%d,"
+            "\"IQ\":%d,\"val\":[", ch, IQ);
+        for (int i = 0; i < nval; i++) {
+            n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%d", i ? "," : "",
+                val[i]);
+        }
+        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "],\"hist1\":[");
+        for (int i = 0; i < nval; i++) {
+            n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%.5g", i ? "," : "",
+                hist1[i]);
+        }
+        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "],\"hist2\":[");
+        for (int i = 0; IQ == 2 && i < nval; i++) {
+            n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%.5g", i ? "," : "",
+                hist2[i]);
+        }
+        snprintf(buff + n, JSON_BUFF_SIZE - n, "]}");
+        ws_send_text(cli, buff);
     }
-    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "],\"hist1\":[");
-    for (int i = 0; i < nval; i++) {
-        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%.5g", i ? "," : "",
-            hist1[i]);
-    }
-    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "],\"hist2\":[");
-    for (int i = 0; IQ == 2 && i < nval; i++) {
-        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%.5g", i ? "," : "",
-            hist2[i]);
-    }
-    snprintf(buff + n, JSON_BUFF_SIZE - n, "]}");
-    ws_send_text(cli, buff);
 }
 
 // send receiver log topic -----------------------------------------------------
@@ -687,26 +692,30 @@ static void poll_log(sdr_web_t *web)
     }
 }
 
-// send PSD binary frame -------------------------------------------------------
+// send PSD binary frames (rfch = 0: all RF CHs) -------------------------------
 static void send_psd(sdr_web_t *web, web_cli_t *cli, web_sub_t *sub)
 {
     double stat[8];
+    int ch1 = sub->rfch ? sub->rfch : 1;
+    int ch2 = sub->rfch ? sub->rfch : SDR_MAX_BUFF;
 
-    if (!sdr_rcv_rfch_stat(web->rcv, sub->rfch, stat)) return;
-    int n = sdr_rcv_rfch_psd(web->rcv, sub->rfch, sub->tave, sub->nfft,
-        web->psd);
-    if (n <= 0) return;
-    uint8_t *p = web->bin_buff;
-    *p++ = FRM_PSD;
-    *p++ = (uint8_t)sub->rfch;
-    *p++ = (uint8_t)stat[4];
-    *p++ = (uint8_t)stat[5];
-    p = bin_f32(p, (float)stat[2]);
-    p = bin_f32(p, (float)sub->tave);
-    p = bin_u32(p, (uint32_t)n);
-    p = bin_f64(p, stat[3]);
-    memcpy(p, web->psd, sizeof(float) * n);
-    ws_send(cli, 0x2, web->bin_buff, 24 + n * 4);
+    for (int ch = ch1; ch <= ch2; ch++) {
+        if (!sdr_rcv_rfch_stat(web->rcv, ch, stat)) break;
+        int n = sdr_rcv_rfch_psd(web->rcv, ch, sub->tave, sub->nfft,
+            web->psd);
+        if (n <= 0) continue;
+        uint8_t *p = web->bin_buff;
+        *p++ = FRM_PSD;
+        *p++ = (uint8_t)ch;
+        *p++ = (uint8_t)stat[4];
+        *p++ = (uint8_t)stat[5];
+        p = bin_f32(p, (float)stat[2]);
+        p = bin_f32(p, (float)sub->tave);
+        p = bin_u32(p, (uint32_t)n);
+        p = bin_f64(p, stat[3]);
+        memcpy(p, web->psd, sizeof(float) * n);
+        ws_send(cli, 0x2, web->bin_buff, 24 + n * 4);
+    }
 }
 
 // send correlator snapshot binary frame ---------------------------------------
@@ -856,7 +865,8 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
         web_sub_t sub;
         memset(&sub, 0, sizeof(sub));
         sub.cyc = id >= TOPIC_PSD ? DEF_CYC_BIN : DEF_CYC_TEXT;
-        sub.ch = sub.rfch = 1;
+        sub.ch = 1;
+        sub.rfch = id == TOPIC_PSD || id == TOPIC_HIST ? 1 : 0;
         sub.nfft = 2048;
         sub.tave = 0.01;
         sub.tspan = 1.0;
@@ -865,8 +875,8 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
         snprintf(sub.sys, sizeof(sub.sys), "ALL");
         if (jsn_num(msg, "cyc", &val)) sub.cyc = (int)CLIP(val, MIN_CYC, 60000);
         if (jsn_num(msg, "ch", &val)) sub.ch = (int)CLIP(val, 1, SDR_MAX_NCH);
-        if (jsn_num(msg, "rfch", &val)) {
-            sub.rfch = (int)CLIP(val, 1, SDR_MAX_BUFF);
+        if (jsn_num(msg, "rfch", &val)) { // 0 = all RF CHs
+            sub.rfch = (int)CLIP(val, 0, SDR_MAX_BUFF);
         }
         if (jsn_num(msg, "chno", &val)) sub.chno = (int)val;
         if (jsn_num(msg, "opt", &val)) sub.opt = (int)val;

@@ -156,6 +156,28 @@ body {
 }
 
 /* Receiver page */
+.rcv-main {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 1fr minmax(160px, 38%);
+}
+.rcv-top {
+    display: grid;
+    grid-template-columns: 1fr minmax(220px, 32%);
+    min-height: 0;
+    overflow: hidden;
+}
+.rcv-body2 {
+    overflow: auto;
+    padding: 10px 16px;
+}
+.rcv-sky {
+    border-left: 1px solid var(--gr);
+}
+.rcv-cn0 {
+    border-top: 1px solid var(--gr);
+}
 .rcv-body {
     flex: 1;
     min-height: 0;
@@ -276,6 +298,41 @@ tr.idle .cn0bar {
     display: block;
     width: 100%;
     height: 100%;
+}
+
+.rfch-band {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+}
+.rfch-tiles {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+/* Satellites page */
+table.chtbl tr.unhealthy td {
+    color: var(--warn);
+}
+
+/* Solution page */
+.sol-enu {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+}
+.sol-hori {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+.sol-hori .plotbox {
+    flex: 1;
 }
 
 /* Correlator page */
