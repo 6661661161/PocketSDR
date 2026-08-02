@@ -36,7 +36,7 @@ const pages = [
     {name: 'Input', page: new InpPage(app)},
     {name: 'Output', page: new OutPage(app)},
     {name: 'Signal', page: new SigPage(app)},
-    {name: 'System', page: new OptsPage(app)},
+    {name: 'System', page: new OptsPage(app), notab: true},
     {name: 'Log', page: new LogPage(app)}
 ];
 let cur = -1;
@@ -48,27 +48,29 @@ app.selectCorrCh = (ch) => {
 // switch page -----------------------------------------------------------------
 function selPage(i) {
     if (i == cur) return;
-    const tabs = document.querySelectorAll('#tabbar .tab');
     if (cur >= 0) {
         pages[cur].page.hide();
         pages[cur].page.el.classList.remove('active');
-        tabs[cur].classList.remove('active');
+        if (pages[cur].tab) pages[cur].tab.classList.remove('active');
     }
     cur = i;
     pages[cur].page.el.classList.add('active');
-    tabs[cur].classList.add('active');
+    if (pages[cur].tab) pages[cur].tab.classList.add('active');
     pages[cur].page.show();
 }
 
-// build tab bar and pages -----------------------------------------------------
+// build tab bar and pages (notab: page opened by a title bar button) ----------
 const tabbar = document.getElementById('tabbar');
 const pagesEl = document.getElementById('pages');
 pages.forEach((p, i) => {
-    const tab = document.createElement('div');
-    tab.className = 'tab';
-    tab.textContent = p.name;
-    tab.onclick = () => selPage(i);
-    tabbar.appendChild(tab);
+    if (!p.notab) {
+        const tab = document.createElement('div');
+        tab.className = 'tab';
+        tab.textContent = p.name;
+        tab.onclick = () => selPage(i);
+        tabbar.appendChild(tab);
+        p.tab = tab;
+    }
     p.page.el.classList.add('page');
     pagesEl.appendChild(p.page.el);
 });
@@ -88,8 +90,7 @@ ws.on('close', () => {
 });
 ws.on('hello', (msg) => {
     Object.assign(app.info, msg);
-    document.getElementById('title').textContent =
-        msg.name + ' ver.' + msg.ver + ' - pocket_trk Web UI';
+    document.getElementById('title').textContent = msg.name;
     document.getElementById('btn-start').disabled = !msg.cfg_ena || msg.run;
     document.getElementById('btn-stop').disabled = !msg.cfg_ena || !msg.run;
 });
@@ -120,6 +121,7 @@ document.getElementById('btn-stop').onclick = () => ws.send({cmd: 'stop'});
 document.getElementById('btn-inp').onclick = () => selPage(7);
 document.getElementById('btn-out').onclick = () => selPage(8);
 document.getElementById('btn-sig').onclick = () => selPage(9);
+document.getElementById('btn-sys').onclick = () => selPage(10);
 
 const hash = ['receiver', 'rfch', 'bbch', 'corr', 'sats', 'sol', 'array',
     'inp', 'out', 'sig', 'opts', 'log'].indexOf(location.hash.slice(1));
