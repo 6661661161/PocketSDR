@@ -487,6 +487,14 @@ table.optbl button {
     border: 1px solid #CCC;
     padding: 1px 3px;
 }
+.op-body select {
+    font: var(--font);
+    border: 1px solid #CCC;
+    padding: 1px 3px;
+}
+.op-body .cfg-row label {
+    width: 150px;
+}
 table.cfg-tbl {
     border-collapse: collapse;
     margin-top: 8px;

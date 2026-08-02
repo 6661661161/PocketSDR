@@ -46,6 +46,9 @@ export class OptsPage {
                 `<td class="note">${note ? '(' + note + ')' : ''}</td>` +
                 `</tr>`).join('') +
             `</tbody></table>` +
+            `<div class="cfg-row"><label>Signal Acquisition Mode</label>` +
+            `<select id="op-acq"><option>Full</option><option>Fast</option>` +
+            `</select></div>` +
             `<div class="cfg-row"><label>FFTW Wisdom Path</label>` +
             `<input type="text" id="op-fftw" class="wide"></div>` +
             `<div class="cfg-row"><label>Receiver Options</label>` +
@@ -73,12 +76,17 @@ export class OptsPage {
             this.app.ws.get('opts');
         };
         this.el.querySelector('#op-apply').onclick = () => {
+            // acquisition mode is the -FAST_SRCH token of receiver options
+            const fast = this.el.querySelector('#op-acq').value == 'Fast';
+            let opt = this.el.querySelector('#op-opt').value
+                .replace(/(^|\s)-FAST_SRCH(?=\s|$)/g, '').trim();
+            if (fast) opt = (opt + ' -FAST_SRCH').trim();
             this.app.ws.send({cmd: 'set_sys',
-                fftw: this.el.querySelector('#op-fftw').value,
-                opt: this.el.querySelector('#op-opt').value});
+                fftw: this.el.querySelector('#op-fftw').value, opt: opt});
             this.app.msg('System options applied.');
             this.app.ws.get('opts');
         };
+        this.el.querySelector('#op-opt').oninput = () => this.syncAcq();
         app.ws.on('opts', (msg) => this.update(msg));
         app.ws.on('open', () => {
             if (this.active) this.app.ws.get('opts');
@@ -98,9 +106,18 @@ export class OptsPage {
                 inp.value = val;
             }
         }
-        this.el.querySelector('#op-apply').disabled = !msg.ena || msg.run;
+        this.syncAcq();
+        for (const id of ['#op-apply', '#op-acq', '#op-fftw', '#op-opt']) {
+            this.el.querySelector(id).disabled = !msg.ena || msg.run;
+        }
         this.el.querySelector('#op-note').textContent = !msg.ena ? '' :
             msg.run ? 'stop the receiver to edit the fields below' : '';
+    }
+    // set acquisition mode by the receiver options -----------------------------
+    syncAcq() {
+        const opt = this.el.querySelector('#op-opt').value;
+        this.el.querySelector('#op-acq').value =
+            /(^|\s)-FAST_SRCH(\s|$)/.test(opt) ? 'Fast' : 'Full';
     }
     show() {
         this.active = true;
