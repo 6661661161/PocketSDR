@@ -73,6 +73,8 @@
 #define TOPIC_CORR_HIST 13      // topic: correlator history (binary)
 #define N_TOPIC         13      // number of topics
 
+#define N_OPT          20       // number of system options
+
 #define MIN(x, y)      ((x) < (y) ? (x) : (y))
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
 
@@ -126,6 +128,7 @@ struct sdr_web_tag {            // Web UI server type
     sdr_mutex_t rcv_mtx;        // receiver pointer lock (for external readers)
     sdr_web_cfg_t cfg;          // receiver configuration
     int cfg_ena;                // receiver lifecycle control enabled
+    double opts_def[N_OPT];     // system option values at server start
     sock_t ssock;               // listen socket
     char html_dir[1024];        // Web UI document root
     web_cli_t cli[MAX_WEB_CLI]; // clients
@@ -752,8 +755,16 @@ static void send_array_stat(sdr_web_t *web, web_cli_t *cli)
     ws_send_text(cli, buff);
 }
 
-// send system option values topic ---------------------------------------------
-static void send_opts(sdr_web_t *web, web_cli_t *cli)
+// system option names ---------------------------------------------------------
+static const char *opt_names[] = {
+    "epoch", "lag_epoch", "el_mask", "sp_corr", "t_acq", "t_acq_ext", "t_dll",
+    "t_coh", "b_dll", "b_pll", "b_fll_w", "b_fll_n", "max_dop", "thres_cn0_l",
+    "thres_cn0_u", "thres_cn0_ext", "thres_pli", "lost_th", "bump_jump",
+    "max_acq"
+};
+
+// get system option values ----------------------------------------------------
+static void get_opts(double *vals)
 {
     extern double sdr_epoch, sdr_lag_epoch, sdr_el_mask, sdr_sp_corr;
     extern double sdr_t_acq, sdr_t_acq_ext, sdr_t_dll, sdr_t_coh;
@@ -761,19 +772,35 @@ static void send_opts(sdr_web_t *web, web_cli_t *cli)
     extern double sdr_max_dop, sdr_thres_cn0_l, sdr_thres_cn0_u;
     extern double sdr_thres_cn0_ext, sdr_thres_pli, sdr_max_acq;
     extern int sdr_bump_jump, sdr_lost_th;
-    char buff[1024];
+    const double v[] = {
+        sdr_epoch, sdr_lag_epoch, sdr_el_mask, sdr_sp_corr, sdr_t_acq,
+        sdr_t_acq_ext, sdr_t_dll, sdr_t_coh, sdr_b_dll, sdr_b_pll,
+        sdr_b_fll_w, sdr_b_fll_n, sdr_max_dop, sdr_thres_cn0_l,
+        sdr_thres_cn0_u, sdr_thres_cn0_ext, sdr_thres_pli, (double)sdr_lost_th,
+        (double)sdr_bump_jump, sdr_max_acq
+    };
+    memcpy(vals, v, sizeof(v));
+}
 
-    snprintf(buff, sizeof(buff), "{\"type\":\"opts\",\"epoch\":%.6g,"
-        "\"lag_epoch\":%.6g,\"el_mask\":%.6g,\"sp_corr\":%.6g,"
-        "\"t_acq\":%.6g,\"t_acq_ext\":%.6g,\"t_dll\":%.6g,\"t_coh\":%.6g,"
-        "\"b_dll\":%.6g,\"b_pll\":%.6g,\"b_fll_w\":%.6g,\"b_fll_n\":%.6g,"
-        "\"max_dop\":%.6g,\"thres_cn0_l\":%.6g,\"thres_cn0_u\":%.6g,"
-        "\"thres_cn0_ext\":%.6g,\"thres_pli\":%.6g,\"lost_th\":%d,"
-        "\"bump_jump\":%d,\"max_acq\":%.6g}", sdr_epoch, sdr_lag_epoch,
-        sdr_el_mask, sdr_sp_corr, sdr_t_acq, sdr_t_acq_ext, sdr_t_dll,
-        sdr_t_coh, sdr_b_dll, sdr_b_pll, sdr_b_fll_w, sdr_b_fll_n,
-        sdr_max_dop, sdr_thres_cn0_l, sdr_thres_cn0_u, sdr_thres_cn0_ext,
-        sdr_thres_pli, sdr_lost_th, sdr_bump_jump, sdr_max_acq);
+// send system option values topic ---------------------------------------------
+static void send_opts(sdr_web_t *web, web_cli_t *cli)
+{
+    double vals[N_OPT];
+    char buff[1024], esc[1024];
+    int n = 0;
+
+    get_opts(vals);
+    n += snprintf(buff + n, sizeof(buff) - n, "{\"type\":\"opts\"");
+    for (int i = 0; i < N_OPT; i++) {
+        n += snprintf(buff + n, sizeof(buff) - n, ",\"%s\":%.6g",
+            opt_names[i], vals[i]);
+    }
+    jsn_esc(esc, sizeof(esc), web->cfg.fftw);
+    n += snprintf(buff + n, sizeof(buff) - n, ",\"fftw\":\"%s\"", esc);
+    jsn_esc(esc, sizeof(esc), web->cfg.opt);
+    snprintf(buff + n, sizeof(buff) - n, ",\"opt\":\"%s\",\"ena\":%d,"
+        "\"run\":%d}", esc, web->cfg_ena,
+        web->rcv && web->rcv->state ? 1 : 0);
     ws_send_text(cli, buff);
 }
 
@@ -816,6 +843,10 @@ static void send_cfg(sdr_web_t *web, web_cli_t *cli)
     }
     jsn_esc(esc, sizeof(esc), str);
     n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"sigs\":\"%s\",", esc);
+    jsn_esc(esc, sizeof(esc), c->rfch);
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"rfch\":\"%s\",", esc);
+    jsn_esc(esc, sizeof(esc), c->fftw);
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"fftw\":\"%s\",", esc);
     for (int i = m = 0; i < SDR_MAX_STR; i++) {
         m += snprintf(str + m, sizeof(str) - m, "%s%d", i ? "," : "",
             c->str_type[i]);
@@ -851,7 +882,11 @@ static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
 {
     const char *sigs[SDR_MAX_NCH], *paths[SDR_MAX_STR];
     int prns[SDR_MAX_NCH], nch = 0;
+    char opt[2048];
     sdr_rcv_t *rcv;
+
+    sdr_func_init(c->fftw); // reload FFTW wisdom (receiver is stopped)
+    snprintf(opt, sizeof(opt), "-RFCH %.1000s %.1000s", c->rfch, c->opt);
 
     for (int i = 0; i < c->nsig; i++) {
         int nums[SDR_MAX_NCH];
@@ -866,15 +901,15 @@ static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
     }
     if (c->inp == 1) {
         rcv = sdr_rcv_open_file(sigs, prns, nch, c->fmt, c->fs, c->fo, c->IQ,
-            c->bits, c->toff, c->tscale, c->file, c->str_type, paths, c->opt);
+            c->bits, c->toff, c->tscale, c->file, c->str_type, paths, opt);
     }
     else if (c->inp == 2) {
         rcv = sdr_rcv_open_sdev(sigs, prns, nch, c->driver, c->fmt, c->fs,
-            c->fo[0], c->str_type, paths, c->opt);
+            c->fo[0], c->str_type, paths, opt);
     }
     else {
         rcv = sdr_rcv_open_dev(sigs, prns, nch, c->bus, c->port, c->conf_file,
-            c->str_type, paths, c->opt);
+            c->str_type, paths, opt);
     }
     if (rcv && c->nant > 0) {
         int ena[SDR_MAX_RFCH] = {0};
@@ -1229,9 +1264,20 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
                     c->nsig++;
                 }
             }
-            jsn_str(msg, "opt", c->opt, sizeof(c->opt));
+            jsn_str(msg, "rfch", c->rfch, sizeof(c->rfch));
             send_ack(cli, cmd, 1, NULL);
         }
+    } else if (!strcmp(cmd, "set_sys")) {
+        if (chk_cfg_edit(web, cli, cmd)) {
+            jsn_str(msg, "fftw", web->cfg.fftw, sizeof(web->cfg.fftw));
+            jsn_str(msg, "opt", web->cfg.opt, sizeof(web->cfg.opt));
+            send_ack(cli, cmd, 1, NULL);
+        }
+    } else if (!strcmp(cmd, "opts_default")) {
+        for (int i = 0; i < N_OPT; i++) {
+            sdr_rcv_setopt(opt_names[i], web->opts_def[i]);
+        }
+        send_ack(cli, cmd, 1, NULL);
     } else if (!strcmp(cmd, "set_out")) {
         if (chk_cfg_edit(web, cli, cmd)) {
             sdr_web_cfg_t *c = &web->cfg;
@@ -1564,6 +1610,7 @@ sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
         web->cli[i].sock = INVALID_SOCKET;
     }
     web->log_tick = sdr_get_tick();
+    get_opts(web->opts_def); // system option values to restore by default
     web->state = 1;
     if (!sdr_thread_create(&web->thread, web_thread, web)) {
         web->state = 0;

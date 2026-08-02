@@ -356,7 +356,9 @@ typedef struct {                // Web UI receiver configuration type
     char prn[SDR_WEB_MAX_SIG][256]; // PRN number lists
     int str_type[SDR_MAX_STR];  // output stream types (SDR_STR_???)
     char str_path[SDR_MAX_STR][1024]; // output stream paths
+    char rfch[1024];            // RF CH assignments (<sig>:<ch>[,...] ...)
     char opt[1024];             // receiver options
+    char fftw[1024];            // FFTW wisdom file path
     int nant;                   // number of array antenna elements
     double ant_pos[SDR_MAX_RFCH][3]; // element positions in body-frame (m)
 } sdr_web_cfg_t;

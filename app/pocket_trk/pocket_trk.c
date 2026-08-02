@@ -195,7 +195,7 @@ int main(int argc, char **argv)
     const char *debug_file = "";
     const char *driver = "";
     double gain = 0.0, bw = 0.0, max_dop = 0.0;
-    char rfch_opt[1024] = "-RFCH";
+    char rfch_opt[2048] = "-RFCH";
     sdr_web_t *web = NULL;
     char web_addr[64] = "";
     int web_port = 0;
@@ -220,9 +220,9 @@ int main(int argc, char **argv)
                 cfg.nsig++;
             }
         } else if (!strcmp(argv[i], "-rfch") && i + 1 < argc) {
-            size_t len = strlen(rfch_opt);
-            snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " %s:%s", sig,
-                argv[++i]);
+            size_t len = strlen(cfg.rfch);
+            snprintf(cfg.rfch + len, sizeof(cfg.rfch) - len, "%s%s:%s",
+                len ? " " : "", sig, argv[++i]);
         } else if (!strcmp(argv[i], "-toff") && i + 1 < argc) {
             toff = atof(argv[++i]);
         } else if (!strcmp(argv[i], "-tscale") && i + 1 < argc) {
@@ -282,8 +282,8 @@ int main(int argc, char **argv)
         } else if (!strcmp(argv[i], "-fd") && i + 1 < argc) {
             max_dop = atof(argv[++i]);
         } else if (!strcmp(argv[i], "-arch") && i + 1 < argc) {
-            size_t len = strlen(rfch_opt);
-            snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -ARCH=%d",
+            size_t len = strlen(cfg.opt);
+            snprintf(cfg.opt + len, sizeof(cfg.opt) - len, " -ARCH=%d",
                 atoi(argv[++i]));
         } else if (!strcmp(argv[i], "-geom") && i + 1 < argc) {
             geom_file = argv[++i];
@@ -326,13 +326,14 @@ int main(int argc, char **argv)
     uint32_t tt = sdr_get_tick();
 
     if (gain > 0.0) {
-        size_t len = strlen(rfch_opt);
-        snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -GAIN=%.1f", gain);
+        size_t len = strlen(cfg.opt);
+        snprintf(cfg.opt + len, sizeof(cfg.opt) - len, " -GAIN=%.1f", gain);
     }
     if (bw > 0.0) {
-        size_t len = strlen(rfch_opt);
-        snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -BW=%.3f", bw);
+        size_t len = strlen(cfg.opt);
+        snprintf(cfg.opt + len, sizeof(cfg.opt) - len, " -BW=%.3f", bw);
     }
+    snprintf(rfch_opt, sizeof(rfch_opt), "-RFCH %s %s", cfg.rfch, cfg.opt);
     if (*file) {
         rcv = sdr_rcv_open_file(sigs, prns, nch, fmt, fs, fo, IQ, bits, toff,
             tscale, file, types, paths, rfch_opt);
@@ -376,7 +377,7 @@ int main(int argc, char **argv)
                 snprintf(cfg.str_path[i], sizeof(cfg.str_path[0]), "%s",
                     paths[i]);
             }
-            snprintf(cfg.opt, sizeof(cfg.opt), "%s", rfch_opt);
+            snprintf(cfg.fftw, sizeof(cfg.fftw), "%s", fftw_wisdom);
             sdr_web_set_cfg(web, &cfg);
             printf("Web UI: http://%s:%d/\n",
                 *web_addr ? web_addr : "127.0.0.1", web_port);

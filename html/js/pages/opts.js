@@ -33,6 +33,9 @@ export class OptsPage {
             `<label>(applied to the running receiver; changes are not ` +
             `persistent)</label>` +
             `<span class="space"></span>` +
+            `<span class="warn-txt" id="op-note"></span>` +
+            `<button id="op-def">Set Default</button>` +
+            `<button id="op-apply">Apply</button>` +
             `<button id="op-refresh">Refresh</button>` +
             `</div>` +
             `<div class="op-body"><table class="optbl"><tbody>` +
@@ -42,7 +45,14 @@ export class OptsPage {
                 `<td><button>Set</button></td>` +
                 `<td class="note">${note ? '(' + note + ')' : ''}</td>` +
                 `</tr>`).join('') +
-            `</tbody></table></div>`;
+            `</tbody></table>` +
+            `<div class="cfg-row"><label>FFTW Wisdom Path</label>` +
+            `<input type="text" id="op-fftw" class="wide"></div>` +
+            `<div class="cfg-row"><label>Receiver Options</label>` +
+            `<input type="text" id="op-opt" class="wide"></div>` +
+            `<div class="cfg-note">Receiver Options: -ARCH=n -GAIN=dB ` +
+            `-BW=MHz -LPF=ch:MHz -FAST_SRCH (applied at receiver start)` +
+            `</div></div>`;
         for (const row of this.el.querySelectorAll('tr[data-key]')) {
             row.querySelector('button').onclick = () => {
                 const val = parseFloat(
@@ -55,6 +65,18 @@ export class OptsPage {
             };
         }
         this.el.querySelector('#op-refresh').onclick = () => {
+            this.app.ws.get('opts');
+        };
+        this.el.querySelector('#op-def').onclick = () => {
+            this.app.ws.send({cmd: 'opts_default'});
+            this.app.msg('System options set to default.');
+            this.app.ws.get('opts');
+        };
+        this.el.querySelector('#op-apply').onclick = () => {
+            this.app.ws.send({cmd: 'set_sys',
+                fftw: this.el.querySelector('#op-fftw').value,
+                opt: this.el.querySelector('#op-opt').value});
+            this.app.msg('System options applied.');
             this.app.ws.get('opts');
         };
         app.ws.on('opts', (msg) => this.update(msg));
@@ -70,6 +92,15 @@ export class OptsPage {
                 inp.value = msg[key];
             }
         }
+        for (const [id, val] of [['#op-fftw', msg.fftw], ['#op-opt', msg.opt]]) {
+            const inp = this.el.querySelector(id);
+            if (val !== undefined && document.activeElement != inp) {
+                inp.value = val;
+            }
+        }
+        this.el.querySelector('#op-apply').disabled = !msg.ena || msg.run;
+        this.el.querySelector('#op-note').textContent = !msg.ena ? '' :
+            msg.run ? 'stop the receiver to edit the fields below' : '';
     }
     show() {
         this.active = true;
