@@ -128,6 +128,7 @@ struct sdr_web_tag {            // Web UI server type
     sdr_mutex_t rcv_mtx;        // receiver pointer lock (for external readers)
     sdr_web_cfg_t cfg;          // receiver configuration
     int cfg_ena;                // receiver lifecycle control enabled
+    char cfg_file[1024];        // settings file ("": no save and restore)
     double opts_def[N_OPT];     // system option values at server start
     sock_t ssock;               // listen socket
     char html_dir[1024];        // Web UI document root
@@ -877,6 +878,144 @@ static int parse_csv(const char *str, double *vals, int n)
     return cnt;
 }
 
+// save settings to file -------------------------------------------------------
+static int save_cfg(sdr_web_t *web)
+{
+    sdr_web_cfg_t *c = &web->cfg;
+    double vals[N_OPT];
+    FILE *fp;
+
+    if (!*web->cfg_file || !(fp = fopen(web->cfg_file, "w"))) return 0;
+    get_opts(vals);
+    fprintf(fp, "# %s ver.%s Web UI settings\n", sdr_get_name(),
+        sdr_get_ver());
+    fprintf(fp, "inp    = %d\n", c->inp);
+    fprintf(fp, "file   = %s\n", c->file);
+    fprintf(fp, "fmt    = %d\n", c->fmt);
+    fprintf(fp, "fs     = %.6f\n", c->fs * 1e-6);
+    fprintf(fp, "fo     =");
+    for (int i = 0; i < SDR_MAX_RFCH; i++) {
+        fprintf(fp, "%s%.6f", i ? "," : " ", c->fo[i] * 1e-6);
+    }
+    fprintf(fp, "\nIQ     =");
+    for (int i = 0; i < SDR_MAX_RFCH; i++) {
+        fprintf(fp, "%s%d", i ? "," : " ", c->IQ[i]);
+    }
+    fprintf(fp, "\nbits   =");
+    for (int i = 0; i < SDR_MAX_RFCH; i++) {
+        fprintf(fp, "%s%d", i ? "," : " ", c->bits[i]);
+    }
+    fprintf(fp, "\ntoff   = %.3f\n", c->toff);
+    fprintf(fp, "tscale = %.3f\n", c->tscale);
+    fprintf(fp, "bus    = %d\n", c->bus);
+    fprintf(fp, "port   = %d\n", c->port);
+    fprintf(fp, "conf   = %s\n", c->conf_file);
+    fprintf(fp, "driver = %s\n", c->driver);
+    fprintf(fp, "sigs   =");
+    for (int i = 0; i < c->nsig; i++) {
+        fprintf(fp, " %s:%s", c->sig[i], c->prn[i]);
+    }
+    fprintf(fp, "\ntypes  =");
+    for (int i = 0; i < SDR_MAX_STR; i++) {
+        fprintf(fp, "%s%d", i ? "," : " ", c->str_type[i]);
+    }
+    fprintf(fp, "\npaths  =");
+    for (int i = 0; i < SDR_MAX_STR; i++) {
+        fprintf(fp, "%s%s", i ? "|" : " ", c->str_path[i]);
+    }
+    fprintf(fp, "\nrfch   = %s\n", c->rfch);
+    fprintf(fp, "opt    = %s\n", c->opt);
+    fprintf(fp, "fftw   = %s\n", c->fftw);
+    for (int i = 0; i < N_OPT; i++) {
+        fprintf(fp, "%-6s = %.6g\n", opt_names[i], vals[i]);
+    }
+    fclose(fp);
+    return 1;
+}
+
+// load settings from file -----------------------------------------------------
+static int load_cfg(sdr_web_t *web)
+{
+    sdr_web_cfg_t *c = &web->cfg;
+    char buff[4096];
+    FILE *fp;
+
+    if (!*web->cfg_file || !(fp = fopen(web->cfg_file, "r"))) return 0;
+
+    while (fgets(buff, sizeof(buff), fp)) {
+        char key[64] = "", *val, *p;
+        if (*buff == '#' || !(val = strchr(buff, '='))) continue;
+        *val++ = '\0';
+        if (sscanf(buff, "%63s", key) < 1) continue;
+        while (*val == ' ' || *val == '\t') val++;
+        for (p = val + strlen(val); p > val && (uint8_t)p[-1] <= ' '; ) *--p = '\0';
+        double vals[SDR_MAX_RFCH];
+        if      (!strcmp(key, "inp"   )) c->inp = (int)CLIP(atof(val), 0, 2);
+        else if (!strcmp(key, "file"  )) snprintf(c->file, sizeof(c->file), "%s", val);
+        else if (!strcmp(key, "fmt"   )) c->fmt = (int)CLIP(atof(val), 1, 8);
+        else if (!strcmp(key, "fs"    )) c->fs = atof(val) * 1e6;
+        else if (!strcmp(key, "toff"  )) c->toff = atof(val);
+        else if (!strcmp(key, "tscale")) c->tscale = atof(val);
+        else if (!strcmp(key, "bus"   )) c->bus = atoi(val);
+        else if (!strcmp(key, "port"  )) c->port = atoi(val);
+        else if (!strcmp(key, "conf"  )) snprintf(c->conf_file, sizeof(c->conf_file), "%s", val);
+        else if (!strcmp(key, "driver")) snprintf(c->driver, sizeof(c->driver), "%s", val);
+        else if (!strcmp(key, "rfch"  )) snprintf(c->rfch, sizeof(c->rfch), "%s", val);
+        else if (!strcmp(key, "opt"   )) snprintf(c->opt, sizeof(c->opt), "%s", val);
+        else if (!strcmp(key, "fftw"  )) snprintf(c->fftw, sizeof(c->fftw), "%s", val);
+        else if (!strcmp(key, "fo")) {
+            int n = parse_csv(val, vals, SDR_MAX_RFCH);
+            for (int i = 0; i < n; i++) c->fo[i] = vals[i] * 1e6;
+        }
+        else if (!strcmp(key, "IQ")) {
+            int n = parse_csv(val, vals, SDR_MAX_RFCH);
+            for (int i = 0; i < n; i++) c->IQ[i] = (int)CLIP(vals[i], 1, 2);
+        }
+        else if (!strcmp(key, "bits")) {
+            int n = parse_csv(val, vals, SDR_MAX_RFCH);
+            for (int i = 0; i < n; i++) c->bits[i] = (int)CLIP(vals[i], 2, 3);
+        }
+        else if (!strcmp(key, "types")) {
+            int n = parse_csv(val, vals, SDR_MAX_STR);
+            for (int i = 0; i < n; i++) c->str_type[i] = (int)CLIP(vals[i], 0, 4);
+        }
+        else if (!strcmp(key, "paths")) {
+            for (int i = 0; i < SDR_MAX_STR; i++) {
+                char *q = strchr(val, '|');
+                if (q) *q = '\0';
+                snprintf(c->str_path[i], sizeof(c->str_path[0]), "%.1023s",
+                    val);
+                if (!q) {
+                    for (i++; i < SDR_MAX_STR; i++) c->str_path[i][0] = '\0';
+                    break;
+                }
+                val = q + 1;
+            }
+        }
+        else if (!strcmp(key, "sigs")) {
+            c->nsig = 0;
+            for (char *q = strtok(val, " "); q && c->nsig < SDR_WEB_MAX_SIG;
+                q = strtok(NULL, " ")) {
+                char *r = strchr(q, ':');
+                if (!r) continue;
+                *r = '\0';
+                snprintf(c->sig[c->nsig], sizeof(c->sig[0]), "%s", q);
+                snprintf(c->prn[c->nsig], sizeof(c->prn[0]), "%s", r + 1);
+                c->nsig++;
+            }
+        }
+        else { // system options
+            for (int i = 0; i < N_OPT; i++) {
+                if (strcmp(key, opt_names[i])) continue;
+                sdr_rcv_setopt(opt_names[i], atof(val));
+                break;
+            }
+        }
+    }
+    fclose(fp);
+    return 1;
+}
+
 // open receiver by configuration ----------------------------------------------
 static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
 {
@@ -1212,6 +1351,7 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
             web->rcv = NULL;
             sdr_mutex_unlock(&web->rcv_mtx);
             web->sel_ch = 0;
+            save_cfg(web);
             send_ack(cli, cmd, 1, NULL);
             bcast_hello(web);
         }
@@ -1627,15 +1767,33 @@ sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
 //  args:
 //      web       (I)  Web UI server (NULL: no operation)
 //      cfg       (I)  receiver configuration
+//      file      (I)  settings file to save and restore ("": no save)
 //
 //  returns:
 //      none
 //
-void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg)
+void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg,
+    const char *file)
 {
     if (!web || !cfg) return;
     web->cfg = *cfg;
     web->cfg_ena = 1;
+    snprintf(web->cfg_file, sizeof(web->cfg_file), "%s", file ? file : "");
+}
+
+//------------------------------------------------------------------------------
+//  Restore the receiver configuration and the system options from the settings
+//  file set by sdr_web_set_cfg().
+//
+//  args:
+//      web       (I)  Web UI server (NULL: no operation)
+//
+//  returns:
+//      status (1: restored, 0: no settings file)
+//
+int sdr_web_load_cfg(sdr_web_t *web)
+{
+    return web ? load_cfg(web) : 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1655,6 +1813,7 @@ sdr_rcv_t *sdr_web_stop(sdr_web_t *web)
         web->state = 0;
         sdr_thread_join(web->thread);
     }
+    save_cfg(web);
     closesocket(web->ssock);
     for (int i = 0; i < MAX_WEB_CLI; i++) {
         if (web->cli[i].state) closesocket(web->cli[i].sock);

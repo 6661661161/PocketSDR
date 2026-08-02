@@ -306,7 +306,8 @@ pocket_trk [-sig sig -prn prn[,...] [-rfch ch[,...]] ...]
            [-p bus[,port]] [-c conf_file]
            [-driver name] [-gain gain] [-bw bw] [-fd dopp]
            [-log path] [-nmea path] [-rtcm path] [-raw path] ...
-           [-arch nch] [-geom file] [-web [addr:]port] [-html dir]
+           [-arch nch] [-geom file]
+           [-web [addr:]port] [-html dir] [-ini file]
            [-h height] [-opt file] [-debug file] [-v] [file]
 ```
 
@@ -319,6 +320,9 @@ The input can be a local file, a TCP stream, a Pocket SDR FE device, or a SoapyS
 ### Options ([]: default)
 
 - `-sig sig -prn prn[,...] [-rfch ch[,...]] ...`
+  - Without `-sig`, the receiver is not started; with `-web` the AP stays
+    idle with the settings of `-ini file` restored, until started from the
+    Web UI.
   - GNSS signal type ID (`L1CA`, `L2CM`, ...) and PRN list. PRNs are comma-separated and may use ranges (e.g. `1-32`). For GLONASS FDMA signals (`G1CA`, `G2CA`), the PRN is treated as the FCN.
   - `-rfch` assigns the signal to specific RF channel(s) (comma- or `-`-separated). Without `-rfch`, the RF channel is auto-selected. The whole `-sig`/`-prn`/`-rfch` triple may be repeated to track multiple signal types.
 - `-fmt {INT8|INT8X2|RAW8|RAW16|RAW16I|RAW32|CS8|CS16}`
@@ -378,6 +382,10 @@ The input can be a local file, a TCP stream, a Pocket SDR FE device, or a SoapyS
     untrusted networks. [disabled]
 - `-html dir`
   - Document root of the Web UI files for `-web`. [`<exe_dir>/../html`]
+- `-ini file`
+  - Web UI settings file. The receiver configuration and the system options
+    set from the Web UI are saved when the receiver is stopped and when the
+    AP exits. Without `-sig`, they are restored at startup. [`pocket_trk.ini`]
 - `-h height`
   - Console height (rows) for the runtime status display. [`64`]
 - `-opt file`

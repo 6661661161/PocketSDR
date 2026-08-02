@@ -644,7 +644,9 @@ int sdr_rcv_set_filt(sdr_rcv_t *rcv, int ch, double bw, double freq, int order);
 // sdr_web.c
 sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
     const char *html_dir);
-void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg);
+void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg,
+    const char *file);
+int sdr_web_load_cfg(sdr_web_t *web);
 sdr_rcv_t *sdr_web_stop(sdr_web_t *web);
 sdr_rcv_t *sdr_web_rcv_lock(sdr_web_t *web);
 void sdr_web_rcv_unlock(sdr_web_t *web);

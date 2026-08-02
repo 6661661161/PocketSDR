@@ -29,6 +29,7 @@
 //  2026-08-01  1.12 add -web and -html options for Web UI
 //  2026-08-02  1.13 add -arch and -geom options for antenna array
 //                   support receiver lifecycle control by the Web UI
+//                   add -ini option, start stopped without -sig
 //
 #include <math.h>
 #include <signal.h>
@@ -39,6 +40,7 @@
 #define PROG_NAME "pocket_trk"  // program name
 #define TRACE_LEVEL 3           // debug trace level
 #define FFTW_WISDOM "../python/fftw_wisdom.txt"
+#define INI_FILE   "pocket_trk.ini" // Web UI settings file
 #define NUM_COL    110          // number of channel status columns
 #define MAX_ROW    64           // max number of channel status rows
 #define MIN_LOCK   2.0          // min lock time for channel status (s)
@@ -56,7 +58,8 @@ static const char *usage_text[] = {
     "       [-toff toff] [-ti tint] [-p bus,[,port] [-c conf_file]",
     "       [-driver name] [-gain gain] [-bw bw] [-fd dopp]",
     "       [-log path] [-nmea path] [-rtcm path] [-raw path] ... [-opt file]",
-    "       [-arch nch] [-geom file] [-web [addr:]port] [-html dir] [file]",
+    "       [-arch nch] [-geom file]",
+    "       [-web [addr:]port] [-html dir] [-ini file] [file]",
     NULL
 };
 
@@ -200,6 +203,7 @@ int main(int argc, char **argv)
     char web_addr[64] = "";
     int web_port = 0;
     const char *html_dir = "", *geom_file = "";
+    const char *ini_file = INI_FILE;
     sdr_web_cfg_t cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -298,6 +302,8 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(argv[i], "-html") && i + 1 < argc) {
             html_dir = argv[++i];
+        } else if (!strcmp(argv[i], "-ini") && i + 1 < argc) {
+            ini_file = argv[++i];
         } else if (!strcmp(argv[i], "-v")) {
             print_ver();
         } else if (argv[i][0] == '-') {
@@ -334,15 +340,18 @@ int main(int argc, char **argv)
         snprintf(cfg.opt + len, sizeof(cfg.opt) - len, " -BW=%.3f", bw);
     }
     snprintf(rfch_opt, sizeof(rfch_opt), "-RFCH %s %s", cfg.rfch, cfg.opt);
-    if (*file) {
-        rcv = sdr_rcv_open_file(sigs, prns, nch, fmt, fs, fo, IQ, bits, toff,
-            tscale, file, types, paths, rfch_opt);
-    } else if (*driver) {
-        rcv = sdr_rcv_open_sdev(sigs, prns, nch, driver, fmt, fs, fo[0], types,
-            paths, rfch_opt);
-    } else {
-        rcv = sdr_rcv_open_dev(sigs, prns, nch, bus, port, conf_file, types,
-            paths, rfch_opt);
+    rcv = NULL;
+    if (nch > 0) { // without -sig, start with the receiver stopped
+        if (*file) {
+            rcv = sdr_rcv_open_file(sigs, prns, nch, fmt, fs, fo, IQ, bits,
+                toff, tscale, file, types, paths, rfch_opt);
+        } else if (*driver) {
+            rcv = sdr_rcv_open_sdev(sigs, prns, nch, driver, fmt, fs, fo[0],
+                types, paths, rfch_opt);
+        } else {
+            rcv = sdr_rcv_open_dev(sigs, prns, nch, bus, port, conf_file,
+                types, paths, rfch_opt);
+        }
     }
     if (!rcv && web_port <= 0) {
         return -1;
@@ -378,7 +387,10 @@ int main(int argc, char **argv)
                     paths[i]);
             }
             snprintf(cfg.fftw, sizeof(cfg.fftw), "%s", fftw_wisdom);
-            sdr_web_set_cfg(web, &cfg);
+            sdr_web_set_cfg(web, &cfg, ini_file);
+            if (nch <= 0) { // restore the settings of the last session
+                sdr_web_load_cfg(web);
+            }
             printf("Web UI: http://%s:%d/\n",
                 *web_addr ? web_addr : "127.0.0.1", web_port);
         } else {
