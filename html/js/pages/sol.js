@@ -61,7 +61,7 @@ export class SolPage {
         const titles = ['Pos E (m)', 'Pos N (m)', 'Pos U (m)', '# Sats'];
         this.plots = [0, 1, 2, 3].map(i => new Plot(
             this.el.querySelector('#so-plt' + i), {
-            margin: [45, 15, 6, i == 3 ? 18 : 6], taxis: 1,
+            margin: [28, 15, 6, i == 3 ? 18 : 3], taxis: 1,
             xlabels: i == 3})); // time labels only on the bottom panel
         this.horiPlot = new Plot(this.el.querySelector('#so-plt4'), {
             margin: [50, 20, 22, 32], aspect: 1, title: 'Pos E/N (m)',

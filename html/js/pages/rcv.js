@@ -96,7 +96,7 @@ export class RcvPage {
         this.leds = this.el.querySelectorAll('#rcv-leds .led');
         this.sky = this.el.querySelector('#rcv-sky');
         this.cn0Plot = new Plot(this.el.querySelector('#rcv-cn0'), {
-            margin: [35, 15, 22, 24], title: 'Signal C/N0 (dB-Hz)',
+            margin: [25, 15, 18, 18], title: 'Signal C/N0 (dB-Hz)',
             ylim: [20, 55], xticks: false});
         for (const id of ['rcv-rf', 'rcv-sys']) {
             this.el.querySelector('#' + id).onchange = () => this.resub();
@@ -236,9 +236,9 @@ export class RcvPage {
         if (arch && this.el.querySelector('#rcv-gain').checked) {
             this.drawGainOverlay(ctx, cx, cy, R, arch);
         }
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 0.6;
         for (const el of [0, 30, 60]) {
-            ctx.strokeStyle = el == 0 ? '#000000' : GR;
+            ctx.strokeStyle = el == 0 ? FG : GR;
             ctx.beginPath();
             ctx.arc(cx, cy, R * (90 - el) / 90, 0, 2 * Math.PI);
             ctx.stroke();
@@ -275,7 +275,7 @@ export class RcvPage {
                 ctx.fillStyle = si.pvt ? color : BG;
                 ctx.fill();
             }
-            ctx.strokeStyle = '#000000';
+            ctx.strokeStyle = FG;
             ctx.stroke();
             ctx.fillStyle = si.pvt && !low ? BG : FG;
             ctx.fillText(sat, x, y);
@@ -384,10 +384,10 @@ export class RcvPage {
                 const px = p.xp(i), py0 = p.yp(20), py1 = p.yp(s.cn0);
                 if (py0 - py1 < 1.0) continue;
                 ctx.fillStyle = color;
-                ctx.fillRect(px - 3, py1, 6, py0 - py1);
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(px - 3, py1, 6, py0 - py1);
+                ctx.fillRect(px - 2.5, py1, 5, py0 - py1);
+                ctx.strokeStyle = FG;
+                ctx.lineWidth = 0.6;
+                ctx.strokeRect(px - 2.5, py1, 5, py0 - py1);
             }
         });
         p.end();
@@ -403,7 +403,7 @@ export class RcvPage {
             let px = p.ax[2] - 10;
             for (const s of present.reverse()) {
                 p.textPx(px, p.ax[1] + 16, s, SYS_COLOR[s], 'right');
-                px -= 14;
+                px -= 8;
             }
         }
         else {

@@ -59,17 +59,17 @@ export class RfchPage {
             `</div>`;
         this.el.querySelector('#rf-tave').value = '0.01';
         this.psdPlot = new Plot(this.el.querySelector('#rf-psd'), {
-            margin: [45, 20, 25, 32], title: 'Power Spectral Density (dB/Hz)',
+            margin: [28, 20, 20, 32], title: 'Power Spectral Density (dB/Hz)',
             xlabel: 'Frequency (MHz)', xlim: [1560, 1590], ylim: [-85, -45]
         });
         this.histPlot = [1, 2].map(i => new Plot(
             this.el.querySelector('#rf-hist' + i), {
-            margin: [40, 15, 25, 32], title: 'Histogram ' + 'IQ'[i-1],
+            margin: [28, 15, 20, 32], title: 'Histogram ' + 'IQ'[i-1],
             xlabel: 'Quantized Value', xlim: [-5, 5], ylim: [0, 0.4]
         }));
         this.bandPlot = [1, 2].map(i => new Plot(
             this.el.querySelector('#rf-band' + i), {
-            margin: [45, 20, 25, 30], xlim: i == 1 ? [1510, 1650] :
+            margin: [20, 20, 20, 20], xlim: i == 1 ? [1510, 1650] :
                 [1160, 1300], ylim: [0, 9], yticks: false,
             title: i == 1 ? 'GNSS Signal Band L1 (MHz)' :
                 'GNSS Signal Band L2/L5/L6 (MHz)'

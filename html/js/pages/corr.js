@@ -49,11 +49,11 @@ export class CorrPage {
         this.el.querySelector('#co-t').value = '1';
         this.el.querySelector('#co-rng').value = '0.4';
         this.plt1 = new Plot(this.el.querySelector('#co-plt1'), {
-            margin: [45, 20, 25, 32], xlabel: 'COFF (ms)'});
+            margin: [28, 20, 18, 32], xlabel: 'COFF (ms)'});
         this.plt2 = new Plot(this.el.querySelector('#co-plt2'), {
-            margin: [45, 15, 25, 32], title: 'IP-QP', aspect: 1});
+            margin: [28, 15, 18, 32], title: 'IP-QP', aspect: 1});
         this.plt3 = new Plot(this.el.querySelector('#co-plt3'), {
-            margin: [45, 20, 25, 32], title: 'Time (s) - IP/QP'});
+            margin: [28, 20, 18, 20], title: 'Time (s) - IP/QP'});
         this.el.querySelector('#co-prev').onclick = () => this.navCh(-1);
         this.el.querySelector('#co-next').onclick = () => this.navCh(1);
         this.el.querySelector('#co-ch').onchange = () =>
@@ -154,9 +154,9 @@ export class CorrPage {
         p.ylim = mode == 'Q' ? [-R, R] :
             (mode == 'IQ' || mode == 'AveIQ') ? [0, R] : [-R * 0.3, R];
         p.begin();
-        p.hline(0, '#000000');
+        p.hline(0, FG);
         if (m) {
-            p.vline(m.coff, '#000000');
+            p.vline(m.coff, FG);
             const sign = m.C[0] >= 0.0 ? 1.0 : -1.0;
             const x = [], y = [];
             for (let i = 0; i < m.n; i++) {
@@ -189,8 +189,8 @@ export class CorrPage {
         p.xlim = [-R, R];
         p.ylim = [-R, R];
         p.begin();
-        p.vline(0, '#000000');
-        p.hline(0, '#000000');
+        p.vline(0, FG);
+        p.hline(0, FG);
         if (h) {
             p.ctx.fillStyle = P2;
             for (let i = 0; i < h.n; i++) {
@@ -225,8 +225,8 @@ export class CorrPage {
             p.point(t[h.n-1], ip[h.n-1], 9, P1);
         }
         p.end();
-        p.textPx(p.ax[2] - 80, p.ax[1] + 16, '— IP', P1, 'left');
-        p.textPx(p.ax[2] - 80, p.ax[1] + 30, '— QP', P2, 'left');
+        p.textPx(p.ax[2] - 70, p.ax[1] + 16, '— IP', P1, 'left');
+        p.textPx(p.ax[2] - 40, p.ax[1] + 16, '— QP', P2, 'left');
         const f = this.stat;
         if (f) {
             p.textPx(p.ax[0] + 12, p.ax[1] + 16,
