@@ -162,8 +162,10 @@ export class SolPage {
             p.resize(); // full width with equal E/N scale
             const [ml, mr, mt, mb] = p.opt.margin;
             const ratio = Math.max((p.w - ml - mr) / (p.h - mt - mb), 0.1);
-            p.xlim = [-rng * ratio, rng * ratio];
-            p.ylim = [-rng, rng];
+            const ce = n > 0 ? enu[n-1][0] : 0.0; // center on the latest
+            const cn = n > 0 ? enu[n-1][1] : 0.0;
+            p.xlim = [ce - rng * ratio, ce + rng * ratio];
+            p.ylim = [cn - rng, cn + rng];
             p.begin();
             p.vline(0, GR);
             p.hline(0, GR);
