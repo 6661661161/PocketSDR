@@ -8,6 +8,9 @@ import {CorrPage} from './pages/corr.js';
 import {SatsPage} from './pages/sats.js';
 import {SolPage} from './pages/sol.js';
 import {ArrayPage} from './pages/array.js';
+import {InpPage} from './pages/inp.js';
+import {OutPage} from './pages/out.js';
+import {SigPage} from './pages/sig.js';
 import {OptsPage} from './pages/opts.js';
 import {LogPage} from './pages/log.js';
 
@@ -30,7 +33,10 @@ const pages = [
     {name: 'Satellites', page: new SatsPage(app)},
     {name: 'Solution', page: new SolPage(app)},
     {name: 'Array', page: new ArrayPage(app)},
-    {name: 'Options', page: new OptsPage(app)},
+    {name: 'Input', page: new InpPage(app)},
+    {name: 'Output', page: new OutPage(app)},
+    {name: 'Signal', page: new SigPage(app)},
+    {name: 'System', page: new OptsPage(app)},
     {name: 'Log', page: new LogPage(app)}
 ];
 let cur = -1;
@@ -84,14 +90,20 @@ ws.on('hello', (msg) => {
     Object.assign(app.info, msg);
     document.getElementById('title').textContent =
         msg.name + ' ver.' + msg.ver + ' - pocket_trk Web UI';
+    document.getElementById('btn-start').disabled = !msg.cfg_ena || msg.run;
+    document.getElementById('btn-stop').disabled = !msg.cfg_ena || !msg.run;
 });
 ws.on('rcv_stat', (msg) => {
     const f = msg.str.split(/\s+/);
     document.getElementById('msg2').textContent = 'Time: ' + f[0] + ' s';
 });
 ws.on('ack', (msg) => {
-    if (!msg.ok) app.msg('Command error: ' + msg.cmd +
-        (msg.msg ? ' (' + msg.msg + ')' : ''));
+    if (!msg.ok) {
+        app.msg('Command error: ' + msg.cmd +
+            (msg.msg ? ' (' + msg.msg + ')' : ''));
+    }
+    else if (msg.cmd == 'start') app.msg('Receiver started.');
+    else if (msg.cmd == 'stop') app.msg('Receiver stopped.');
 });
 ws.on('error', (msg) => {
     app.msg('Error: ' + msg.msg);
@@ -103,6 +115,12 @@ ws.on('open', () => {
     ws.sub('pvt_sol', {cyc: 200}); // solution history collected page-wide
 });
 ws.connect();
+document.getElementById('btn-start').onclick = () => ws.send({cmd: 'start'});
+document.getElementById('btn-stop').onclick = () => ws.send({cmd: 'stop'});
+document.getElementById('btn-inp').onclick = () => selPage(7);
+document.getElementById('btn-out').onclick = () => selPage(8);
+document.getElementById('btn-sig').onclick = () => selPage(9);
+
 const hash = ['receiver', 'rfch', 'bbch', 'corr', 'sats', 'sol', 'array',
-    'opts', 'log'].indexOf(location.hash.slice(1));
+    'inp', 'out', 'sig', 'opts', 'log'].indexOf(location.hash.slice(1));
 selPage(hash < 0 ? 0 : hash);

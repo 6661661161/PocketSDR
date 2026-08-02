@@ -34,8 +34,8 @@
 #define MAX_WEB_CLI    8        // max number of HTTP/WebSocket clients
 #define WEB_CYC        10       // server loop cycle (ms)
 #define MIN_CYC        50       // min topic update cycle (ms)
-#define DEF_CYC_TEXT   200      // default cycle of text topics (ms)
-#define DEF_CYC_BIN    100      // default cycle of binary topics (ms)
+#define DEF_CYC_TEXT   100      // default cycle of text topics (ms)
+#define DEF_CYC_BIN    50       // default cycle of binary topics (ms)
 #define LOG_POLL_CYC   200      // receiver log polling cycle (ms)
 #define PING_CYC       10000    // WebSocket ping cycle (ms)
 #define DROP_TIMEOUT   30000    // client drop timeout (ms)
@@ -67,10 +67,11 @@
 #define TOPIC_LOG       7       // topic: receiver log
 #define TOPIC_ARRAY_STAT 8      // topic: antenna array status
 #define TOPIC_OPTS      9       // topic: system option values
-#define TOPIC_PSD       10      // topic: PSD (binary)
-#define TOPIC_CORR      11      // topic: correlator snapshot (binary)
-#define TOPIC_CORR_HIST 12      // topic: correlator history (binary)
-#define N_TOPIC         12      // number of topics
+#define TOPIC_CFG       10      // topic: receiver configuration
+#define TOPIC_PSD       11      // topic: PSD (binary)
+#define TOPIC_CORR      12      // topic: correlator snapshot (binary)
+#define TOPIC_CORR_HIST 13      // topic: correlator history (binary)
+#define N_TOPIC         13      // number of topics
 
 #define MIN(x, y)      ((x) < (y) ? (x) : (y))
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
@@ -121,7 +122,10 @@ typedef struct {                // Web UI client type
 
 struct sdr_web_tag {            // Web UI server type
     int state;                  // state (0:stop, 1:run)
-    sdr_rcv_t *rcv;             // SDR receiver
+    sdr_rcv_t *rcv;             // SDR receiver (NULL: stopped)
+    sdr_mutex_t rcv_mtx;        // receiver pointer lock (for external readers)
+    sdr_web_cfg_t cfg;          // receiver configuration
+    int cfg_ena;                // receiver lifecycle control enabled
     sock_t ssock;               // listen socket
     char html_dir[1024];        // Web UI document root
     web_cli_t cli[MAX_WEB_CLI]; // clients
@@ -453,9 +457,19 @@ static void send_hello(sdr_web_t *web, web_cli_t *cli)
 
     snprintf(buff, sizeof(buff), "{\"type\":\"hello\",\"name\":\"%s\","
         "\"ver\":\"%s\",\"proto\":%d,\"nrfch\":%d,\"narch\":%d,\"nch\":%d,"
-        "\"fs\":%.0f,\"sel_ch\":%d}", sdr_get_name(), sdr_get_ver(), WEB_PROTO,
-        rcv->nrfch, rcv->narch, rcv->nch, rcv->fs, web->sel_ch);
+        "\"fs\":%.0f,\"sel_ch\":%d,\"run\":%d,\"cfg_ena\":%d}", sdr_get_name(),
+        sdr_get_ver(), WEB_PROTO, rcv ? rcv->nrfch : 0, rcv ? rcv->narch : 0,
+        rcv ? rcv->nch : 0, rcv ? rcv->fs : 0.0,
+        web->sel_ch, rcv && rcv->state ? 1 : 0, web->cfg_ena);
     ws_send_text(cli, buff);
+}
+
+// broadcast hello to all clients ----------------------------------------------
+static void bcast_hello(sdr_web_t *web)
+{
+    for (int i = 0; i < MAX_WEB_CLI; i++) {
+        if (web->cli[i].state == 2) send_hello(web, web->cli + i);
+    }
 }
 
 // handle WebSocket upgrade ----------------------------------------------------
@@ -702,7 +716,7 @@ static void send_array_stat(sdr_web_t *web, web_cli_t *cli)
     double rpy[3] = {0}, bias[SDR_MAX_RFCH] = {0}, rms = 0.0, az, el;
     int nep = 0, n;
 
-    if (rcv->narch <= 0 || !rcv->array) {
+    if (!rcv || rcv->narch <= 0 || !rcv->array) {
         ws_send_text(cli, "{\"type\":\"array_stat\",\"narch\":0}");
         return;
     }
@@ -761,6 +775,113 @@ static void send_opts(sdr_web_t *web, web_cli_t *cli)
         sdr_max_dop, sdr_thres_cn0_l, sdr_thres_cn0_u, sdr_thres_cn0_ext,
         sdr_thres_pli, sdr_lost_th, sdr_bump_jump, sdr_max_acq);
     ws_send_text(cli, buff);
+}
+
+// send receiver configuration topic -------------------------------------------
+static void send_cfg(sdr_web_t *web, web_cli_t *cli)
+{
+    sdr_web_cfg_t *c = &web->cfg;
+    char *buff = web->json_buff, esc[4096], str[4096];
+    int n = 0, m;
+
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "{\"type\":\"cfg\","
+        "\"ena\":%d,\"run\":%d,\"inp\":%d,\"fmt\":%d,\"fs\":%.6f,",
+        web->cfg_ena, web->rcv && web->rcv->state ? 1 : 0, c->inp, c->fmt,
+        c->fs * 1e-6);
+    jsn_esc(esc, sizeof(esc), c->file);
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"file\":\"%s\",", esc);
+    for (int i = m = 0; i < SDR_MAX_RFCH; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%.6f", i ? "," : "",
+            c->fo[i] * 1e-6);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"fo\":\"%s\",", str);
+    for (int i = m = 0; i < SDR_MAX_RFCH; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%d", i ? "," : "",
+            c->IQ[i]);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"IQ\":\"%s\",", str);
+    for (int i = m = 0; i < SDR_MAX_RFCH; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%d", i ? "," : "",
+            c->bits[i]);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"bits\":\"%s\","
+        "\"toff\":%.3f,\"tscale\":%.3f,\"bus\":%d,\"port\":%d,", str,
+        c->toff, c->tscale, c->bus, c->port);
+    jsn_esc(esc, sizeof(esc), c->conf_file);
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"conf\":\"%s\","
+        "\"driver\":\"%s\",", esc, c->driver);
+    for (int i = m = 0; i < c->nsig && m < (int)sizeof(str) - 300; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%s:%s", i ? " " : "",
+            c->sig[i], c->prn[i]);
+    }
+    jsn_esc(esc, sizeof(esc), str);
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"sigs\":\"%s\",", esc);
+    for (int i = m = 0; i < SDR_MAX_STR; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%d", i ? "," : "",
+            c->str_type[i]);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"types\":\"%s\",", str);
+    for (int i = m = 0; i < SDR_MAX_STR && m < (int)sizeof(str) - 2; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%s", i ? "|" : "",
+            c->str_path[i]);
+    }
+    jsn_esc(esc, sizeof(esc), str);
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"paths\":\"%s\",", esc);
+    jsn_esc(esc, sizeof(esc), c->opt);
+    snprintf(buff + n, JSON_BUFF_SIZE - n, "\"opt\":\"%s\"}", esc);
+    ws_send_text(cli, buff);
+}
+
+// parse comma-separated numbers -----------------------------------------------
+static int parse_csv(const char *str, double *vals, int n)
+{
+    int cnt = 0;
+
+    for (int i = 0; i < n && *str; i++) {
+        vals[i] = strtod(str, NULL);
+        cnt++;
+        if (!(str = strchr(str, ','))) break;
+        str++;
+    }
+    return cnt;
+}
+
+// open receiver by configuration ----------------------------------------------
+static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
+{
+    const char *sigs[SDR_MAX_NCH], *paths[SDR_MAX_STR];
+    int prns[SDR_MAX_NCH], nch = 0;
+    sdr_rcv_t *rcv;
+
+    for (int i = 0; i < c->nsig; i++) {
+        int nums[SDR_MAX_NCH];
+        int m = sdr_parse_nums(c->prn[i], nums);
+        for (int j = 0; j < m && nch < SDR_MAX_NCH; j++) {
+            sigs[nch] = c->sig[i];
+            prns[nch++] = nums[j];
+        }
+    }
+    for (int i = 0; i < SDR_MAX_STR; i++) {
+        paths[i] = c->str_path[i];
+    }
+    if (c->inp == 1) {
+        rcv = sdr_rcv_open_file(sigs, prns, nch, c->fmt, c->fs, c->fo, c->IQ,
+            c->bits, c->toff, c->tscale, c->file, c->str_type, paths, c->opt);
+    }
+    else if (c->inp == 2) {
+        rcv = sdr_rcv_open_sdev(sigs, prns, nch, c->driver, c->fmt, c->fs,
+            c->fo[0], c->str_type, paths, c->opt);
+    }
+    else {
+        rcv = sdr_rcv_open_dev(sigs, prns, nch, c->bus, c->port, c->conf_file,
+            c->str_type, paths, c->opt);
+    }
+    if (rcv && c->nant > 0) {
+        int ena[SDR_MAX_RFCH] = {0};
+        for (int i = 0; i < c->nant; i++) ena[i] = 1;
+        sdr_rcv_array_ant_pos(rcv, (const double *)c->ant_pos, ena);
+    }
+    return rcv;
 }
 
 // send PSD binary frames (rfch = 0: all RF CHs) -------------------------------
@@ -861,6 +982,7 @@ static void send_topic(sdr_web_t *web, web_cli_t *cli, int topic,
         case TOPIC_LOG      : send_log      (web, cli, sub); break;
         case TOPIC_ARRAY_STAT: send_array_stat(web, cli); break;
         case TOPIC_OPTS     : send_opts     (web, cli); break;
+        case TOPIC_CFG      : send_cfg      (web, cli); break;
         case TOPIC_PSD      : send_psd      (web, cli, sub); break;
         case TOPIC_CORR     : send_corr     (web, cli, sub); break;
         case TOPIC_CORR_HIST: send_corr_hist(web, cli, sub); break;
@@ -872,7 +994,7 @@ static int topic_id(const char *name)
 {
     static const char *names[] = {
         "", "rcv_stat", "ch_stat", "sat_stat", "pvt_sol", "rfch_stat", "hist",
-        "log", "array_stat", "opts", "psd", "corr", "corr_hist"
+        "log", "array_stat", "opts", "cfg", "psd", "corr", "corr_hist"
     };
     for (int i = 1; i <= N_TOPIC; i++) {
         if (!strcmp(name, names[i])) return i;
@@ -916,6 +1038,20 @@ static void check_sel_ch(sdr_web_t *web)
             web->cli[i].subs[TOPIC_CORR_HIST].ena) return;
     }
     if (web->sel_ch) update_sel_ch(web, 0, DEF_SEL_WIDTH);
+}
+
+// check receiver configuration is editable ------------------------------------
+static int chk_cfg_edit(sdr_web_t *web, web_cli_t *cli, const char *cmd)
+{
+    if (!web->cfg_ena) {
+        send_ack(cli, cmd, 0, "\"msg\":\"not supported\"");
+        return 0;
+    }
+    if (web->rcv && web->rcv->state) {
+        send_ack(cli, cmd, 0, "\"msg\":\"stop receiver first\"");
+        return 0;
+    }
+    return 1;
 }
 
 // process Web UI client command -----------------------------------------------
@@ -1014,6 +1150,115 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
         snprintf(extra, sizeof(extra), "\"bw\":%.3f,\"freq\":%.3f,"
             "\"order\":%d", bw, freq, order);
         send_ack(cli, "get_filt", ok, extra);
+    } else if (!strcmp(cmd, "start")) {
+        if (!web->cfg_ena) {
+            send_ack(cli, cmd, 0, "\"msg\":\"not supported\"");
+        }
+        else if (web->rcv && web->rcv->state) {
+            send_ack(cli, cmd, 0, "\"msg\":\"receiver already run\"");
+        }
+        else {
+            sdr_mutex_lock(&web->rcv_mtx);
+            if (web->rcv) sdr_rcv_close(web->rcv);
+            web->rcv = cfg_open(&web->cfg);
+            sdr_mutex_unlock(&web->rcv_mtx);
+            web->sel_ch = 0;
+            send_ack(cli, cmd, web->rcv != NULL, web->rcv ? NULL :
+                "\"msg\":\"receiver start error\"");
+            bcast_hello(web);
+        }
+    } else if (!strcmp(cmd, "stop")) {
+        if (!web->cfg_ena) {
+            send_ack(cli, cmd, 0, "\"msg\":\"not supported\"");
+        }
+        else {
+            sdr_mutex_lock(&web->rcv_mtx);
+            if (web->rcv) sdr_rcv_close(web->rcv);
+            web->rcv = NULL;
+            sdr_mutex_unlock(&web->rcv_mtx);
+            web->sel_ch = 0;
+            send_ack(cli, cmd, 1, NULL);
+            bcast_hello(web);
+        }
+    } else if (!strcmp(cmd, "set_inp")) {
+        if (chk_cfg_edit(web, cli, cmd)) {
+            sdr_web_cfg_t *c = &web->cfg;
+            char str[4096];
+            double vals[SDR_MAX_RFCH];
+            if (jsn_num(msg, "inp", &val)) c->inp = (int)CLIP(val, 0, 2);
+            if (jsn_num(msg, "fmt", &val)) c->fmt = (int)CLIP(val, 1, 8);
+            if (jsn_num(msg, "fs", &val)) c->fs = val * 1e6; // MHz
+            if (jsn_num(msg, "toff", &val)) c->toff = val;
+            if (jsn_num(msg, "tscale", &val)) c->tscale = val;
+            if (jsn_num(msg, "bus", &val)) c->bus = (int)val;
+            if (jsn_num(msg, "port", &val)) c->port = (int)val;
+            jsn_str(msg, "file", c->file, sizeof(c->file));
+            jsn_str(msg, "conf", c->conf_file, sizeof(c->conf_file));
+            jsn_str(msg, "driver", c->driver, sizeof(c->driver));
+            if (jsn_str(msg, "fo", str, sizeof(str))) { // MHz
+                int m = parse_csv(str, vals, SDR_MAX_RFCH);
+                for (int i = 0; i < m; i++) c->fo[i] = vals[i] * 1e6;
+            }
+            if (jsn_str(msg, "IQ", str, sizeof(str))) {
+                int m = parse_csv(str, vals, SDR_MAX_RFCH);
+                for (int i = 0; i < m; i++) {
+                    c->IQ[i] = (int)CLIP(vals[i], 1, 2);
+                }
+            }
+            if (jsn_str(msg, "bits", str, sizeof(str))) {
+                int m = parse_csv(str, vals, SDR_MAX_RFCH);
+                for (int i = 0; i < m; i++) {
+                    c->bits[i] = (int)CLIP(vals[i], 2, 3);
+                }
+            }
+            send_ack(cli, cmd, 1, NULL);
+        }
+    } else if (!strcmp(cmd, "set_sig")) {
+        if (chk_cfg_edit(web, cli, cmd)) {
+            sdr_web_cfg_t *c = &web->cfg;
+            char str[4096];
+            if (jsn_str(msg, "sigs", str, sizeof(str))) {
+                c->nsig = 0;
+                for (char *p = strtok(str, " "); p && c->nsig <
+                    SDR_WEB_MAX_SIG; p = strtok(NULL, " ")) {
+                    char *q = strchr(p, ':');
+                    if (!q) continue;
+                    *q = '\0';
+                    snprintf(c->sig[c->nsig], sizeof(c->sig[0]), "%s", p);
+                    snprintf(c->prn[c->nsig], sizeof(c->prn[0]), "%s", q + 1);
+                    c->nsig++;
+                }
+            }
+            jsn_str(msg, "opt", c->opt, sizeof(c->opt));
+            send_ack(cli, cmd, 1, NULL);
+        }
+    } else if (!strcmp(cmd, "set_out")) {
+        if (chk_cfg_edit(web, cli, cmd)) {
+            sdr_web_cfg_t *c = &web->cfg;
+            char str[4096];
+            double vals[SDR_MAX_STR];
+            if (jsn_str(msg, "types", str, sizeof(str))) {
+                int m = parse_csv(str, vals, SDR_MAX_STR);
+                for (int i = 0; i < m; i++) {
+                    c->str_type[i] = (int)CLIP(vals[i], 0, 4);
+                }
+            }
+            if (jsn_str(msg, "paths", str, sizeof(str))) {
+                char *p = str;
+                for (int i = 0; i < SDR_MAX_STR; i++) {
+                    char *q = strchr(p, '|');
+                    if (q) *q = '\0';
+                    snprintf(c->str_path[i], sizeof(c->str_path[0]), "%.1023s",
+                        p);
+                    if (!q) {
+                        for (i++; i < SDR_MAX_STR; i++) c->str_path[i][0] = '\0';
+                        break;
+                    }
+                    p = q + 1;
+                }
+            }
+            send_ack(cli, cmd, 1, NULL);
+        }
     } else if (!strcmp(cmd, "array_run")) { // 1:start, 0:stop, 2:clear
         double run = 0.0;
         jsn_num(msg, "run", &run);
@@ -1255,7 +1500,7 @@ static void exe_dir(char *dir, int size)
 //  over HTTP and exchanges commands and monitor data over WebSocket (/ws).
 //
 //  args:
-//      rcv       (I)  SDR receiver
+//      rcv       (I)  SDR receiver (NULL: idle until started by the Web UI)
 //      addr      (I)  bind address ("" or NULL: 127.0.0.1)
 //      port      (I)  TCP port number
 //      html_dir  (I)  Web UI document root ("" or NULL: <exe_dir>/../html)
@@ -1269,7 +1514,7 @@ sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
     struct sockaddr_in sa;
     int opt = 1;
 
-    if (!rcv || port <= 0 || port > 65535) return NULL;
+    if (port <= 0 || port > 65535) return NULL;
 
     sock_t sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == INVALID_SOCKET) {
@@ -1298,6 +1543,7 @@ sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
 
     sdr_web_t *web = (sdr_web_t *)sdr_malloc(sizeof(sdr_web_t));
     web->rcv = rcv;
+    sdr_mutex_init(&web->rcv_mtx);
     web->ssock = sock;
     web->sel_width = DEF_SEL_WIDTH;
     if (html_dir && *html_dir) {
@@ -1328,17 +1574,36 @@ sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
 }
 
 //------------------------------------------------------------------------------
-//  Stop the Web UI server and free all resources.
+//  Set the receiver configuration and enable receiver lifecycle control
+//  (start/stop and configuration commands) on the Web UI server.
+//
+//  args:
+//      web       (I)  Web UI server (NULL: no operation)
+//      cfg       (I)  receiver configuration
+//
+//  returns:
+//      none
+//
+void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg)
+{
+    if (!web || !cfg) return;
+    web->cfg = *cfg;
+    web->cfg_ena = 1;
+}
+
+//------------------------------------------------------------------------------
+//  Stop the Web UI server and free all resources. The current receiver is
+//  not closed; it is returned to the caller to be closed.
 //
 //  args:
 //      web       (I)  Web UI server (NULL: no operation)
 //
 //  returns:
-//      none
+//      current SDR receiver (NULL: none)
 //
-void sdr_web_stop(sdr_web_t *web)
+sdr_rcv_t *sdr_web_stop(sdr_web_t *web)
 {
-    if (!web) return;
+    if (!web) return NULL;
     if (web->state) {
         web->state = 0;
         sdr_thread_join(web->thread);
@@ -1357,5 +1622,29 @@ void sdr_web_stop(sdr_web_t *web)
     sdr_free(web->bin_buff);
     sdr_free(web->psd);
     sdr_free(web->hist_P);
+    sdr_rcv_t *rcv = web->rcv;
     sdr_free(web);
+    return rcv;
+}
+
+//------------------------------------------------------------------------------
+//  Get the current SDR receiver of the Web UI server with the receiver
+//  pointer locked. Call sdr_web_rcv_unlock() after use.
+//
+//  args:
+//      web       (I)  Web UI server (NULL: no operation)
+//
+//  returns:
+//      current SDR receiver (NULL: none)
+//
+sdr_rcv_t *sdr_web_rcv_lock(sdr_web_t *web)
+{
+    if (!web) return NULL;
+    sdr_mutex_lock(&web->rcv_mtx);
+    return web->rcv;
+}
+
+void sdr_web_rcv_unlock(sdr_web_t *web)
+{
+    if (web) sdr_mutex_unlock(&web->rcv_mtx);
 }

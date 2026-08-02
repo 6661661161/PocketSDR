@@ -1,22 +1,20 @@
 /* Pocket SDR Web UI - style sheet */
 
 :root {
-    --bg1: #F8F8F8;
+    --bg1: #F0F0F0;
     --fg: #555555;
     --gr: #E4E4E4;
-    --p1: #003020;
+    --p1: #555555;
     --p2: #888844;
     --p3: #BBBBBB;
     --warn: #FF4000;
-    --font: 13px Tahoma, "DejaVu Sans", sans-serif;
-    --mono: 13px Consolas, "DejaVu Sans Mono", monospace;
-    /* canvas plots: axis/in-plot labels, titles, sky plot satellite marks */
-    --plot-font: 11px Tahoma, "DejaVu Sans", sans-serif;
-    --plot-title-font: bold 12px Tahoma, "DejaVu Sans", sans-serif;
-    --sky-sat-size: 10px;
-    --sky-sat-font: 9px Tahoma, "DejaVu Sans", sans-serif;
-    /* status tables (BB CH, Satellites) */
-    --tbl-font: 13px Consolas, "DejaVu Sans Mono", monospace;
+    --font: 10px "Noto Sans", sans-serif;
+    --mono: 10px "Noto Mono", monospace;
+    --plot-font: 10px "Noto Sans", sans-serif;
+    --plot-title-font: bold 10px "Noto Sans", sans-serif;
+    /*--sky-sat-size: 12px;*/
+    /*--sky-sat-font: 12px Tahoma, "DejaVu Sans", sans-serif;*/
+    --tbl-font: 10px "Noto Sans", sans-serif;
 }
 * {
     box-sizing: border-box;
@@ -29,7 +27,7 @@ html, body {
 body {
     font: var(--font);
     color: #222;
-    padding: 8px 8px;
+    padding: 4px 4px;
     background: var(--bg1);
 }
 #app {
@@ -42,35 +40,32 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 6px;
+    padding: 2px 10px;
     background: var(--bg1);
-    border-bottom: 1px solid var(--gr);
+    border: 1px solid #CCC
 }
 #title {
-    font-size: 13px;
+    font: 11px "Noto Sans", sans-serif;
     font-weight: bold;
     color: var(--p1);
 }
 .conn-on {
-    color: #00AA00;
     font-weight: bold;
+    color: #008800;
 }
 .conn-off {
-    color: var(--warn);
     font-weight: bold;
+    color: var(--warn);
 }
 #tabbar {
+    font: 10px "Noto Sans", sans-serif;
     display: flex;
     background: var(--bg1);
-    border-bottom: 1px solid #CCC;
+    border: 1px solid #CCC;
 }
 #tabbar .tab {
-    padding: 6px 12px;
-    font-size: 13px;
+    padding: 2px 10px;
     cursor: pointer;
-    border: 1px solid transparent;
-    border-bottom: none;
-    color: #444;
     user-select: none;
 }
 #tabbar .tab:hover {
@@ -78,8 +73,8 @@ body {
 }
 #tabbar .tab.active {
     background: white;
-    border-color: #CCC;
     color: var(--p1);
+    border: 1px solid #CCC;
     font-weight: bold;
 }
 #pages {
@@ -99,10 +94,9 @@ body {
 #statusbar {
     display: flex;
     justify-content: space-between;
-    padding: 6px 6px;
-    height: 24px;
+    padding: 2px 10px;
     background: white;
-    border-top: 1px solid var(--gr);
+    border: 1px solid #CCC;
     color: darkblue;
     white-space: nowrap;
     overflow: hidden;
@@ -116,41 +110,119 @@ body {
 .toolbar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    height: 24px;
-    padding: 0 6px;
+    gap: 2px;
+    padding: 2px 10px;
     background: var(--bg1);
-    border-bottom: 1px solid var(--gr);
+    border: 1px solid #CCC;
     white-space: nowrap;
     overflow: hidden;
 }
 .toolbar .space {
     flex: 1;
 }
-.toolbar label {
-    color: #333;
-}
 .toolbar select, .toolbar input[type=text], .toolbar input[type=number] {
     font: var(--font);
     background: white;
-    border: 1px solid #BBB;
-    padding: 1px 2px;
+    border: 1px solid #CCC;
+    padding: 0px 2px;
 }
 .toolbar input[type=number] {
     width: 55px;
 }
 .toolbar button {
-    font: var(--font);
     background: var(--bg1);
-    border: 1px solid #AAA;
-    padding: 1px 8px;
+    border: 1px solid #CCC;
+    padding: 2px 4px;
     cursor: pointer;
 }
 .toolbar button:hover {
     background: #EEE;
 }
-.toolbar .mono {
+
+/* title bar buttons */
+#btnbar {
+    display: flex;
+    gap: 6px;
+}
+#btnbar button {
+    font: var(--font);
+    background: var(--bg1);
+    border: 1px solid #AAA;
+    padding: 2px 14px;
+    cursor: pointer;
+}
+#btnbar button:hover {
+    background: #EEE;
+}
+#btnbar button:disabled {
+    color: #AAA;
+    cursor: default;
+}
+
+/* configuration pages (Input / Output / Signal) */
+.cfg-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 10px 14px;
+}
+.cfg-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+.cfg-row label {
+    width: 220px;
+    font-weight: bold;
+    color: #333;
+}
+.cfg-body input[type=text], .cfg-body input[type=number],
+.cfg-body select {
     font: var(--mono);
+    border: 1px solid #BBB;
+    padding: 1px 3px;
+}
+.cfg-body input[type=number] {
+    width: 110px;
+}
+.cfg-body input.wide {
+    width: min(560px, 60vw);
+}
+table.cfg-tbl {
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+table.cfg-tbl th, table.cfg-tbl td {
+    padding: 2px 8px;
+    text-align: left;
+    color: #333;
+    white-space: nowrap;
+}
+table.cfg-tbl th {
+    border-bottom: 1px solid #CCC;
+    font-weight: bold;
+}
+.sig-sec {
+    border: 1px solid #CCC;
+    padding: 5px 10px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.sig-sec .sig-head {
+    font-weight: bold;
+    color: #333;
+    width: 80px;
+}
+.sig-sec .sig-chk {
+    white-space: nowrap;
+}
+.cfg-note {
+    color: var(--p2);
+    padding: 4px 0;
 }
 
 /* stream LED indicators */
@@ -168,54 +240,45 @@ body {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-rows: 1fr minmax(200px, 45%);
+    grid-template-rows: 1fr minmax(200px, 49%);
 }
 .rcv-top {
     display: grid;
-    grid-template-columns: 1fr minmax(220px, 32%);
+    grid-template-columns: 1fr minmax(200px, 35%);
     min-height: 0;
     overflow: hidden;
 }
 .rcv-body2 {
+    border: 2px solid var(--bg1);
     overflow: auto;
-    padding: 10px 10px;
+    padding: 16px 12px;
 }
 .rcv-sky {
-    border-left: 2px solid var(--gr);
+    border: 2px solid var(--bg1);
 }
 .rcv-cn0 {
-    border-top: 2px solid var(--gr);
-}
-.rcv-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 10px 10px;
+    border: 2px solid var(--bg1);
 }
 .rcv-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    column-gap: 40px;
-    row-gap: 1px;
+    column-gap: 20px;
     max-width: 1000px;
 }
 .rcv-col {
     display: flex;
     flex-direction: column;
-    gap: 2px;
 }
 .rcv-row {
     display: flex;
     justify-content: space-between;
-    border-bottom: 1px solid #F0F0F0;
-    padding: 2px 0;
+    border-bottom: 2px solid var(--bg1)
 }
 .rcv-row .lbl {
     font-weight: bold;
     color: #333;
 }
 .rcv-row .val {
-    font: var(--mono);
     color: var(--p1);
     text-align: right;
     flex: 1;
@@ -240,15 +303,15 @@ table.chtbl th {
     position: sticky;
     top: 0;
     background: var(--bg1);
-    border-bottom: 1px solid #CCC;
-    padding: 1px 2px;
-    text-align: right;
-    font-weight: normal;
+    border: 1px solid #CCC;
+    padding: 2px 4px;
+    text-align: center;
+    font-weight: bold;
     color: #333;
     white-space: nowrap;
 }
 table.chtbl td {
-    padding: 0px 2px;
+    padding: 0px 4px;
     text-align: right;
     color: var(--p1);
     white-space: nowrap;
@@ -275,7 +338,7 @@ table.chtbl th.bar, table.chtbl td.bar {
 .cn0bar {
     display: inline-block;
     height: 10px;
-    background: #555555;
+    background: #96aca6a3;
     vertical-align: middle;
 }
 tr.idle .cn0bar {
@@ -365,7 +428,7 @@ table.chtbl tr.unhealthy td {
     margin-bottom: 6px;
 }
 .ar-frame .mono {
-    font: var(--mono);
+    font: var(--font);
     color: var(--p1);
 }
 .ar-beam {
@@ -376,14 +439,13 @@ table.chtbl tr.unhealthy td {
 }
 .ar-beam input {
     font: var(--font);
-    width: 70px;
-    border: 1px solid #BBB;
+    width: 50px;
+    border: 1px solid #CCC;
     padding: 1px 2px;
 }
 .ar-beam button {
-    font: var(--font);
     background: var(--bg1);
-    border: 1px solid #AAA;
+    border: 1px solid #CCC;
     padding: 1px 8px;
     cursor: pointer;
 }
@@ -403,7 +465,7 @@ table.optbl {
     border-collapse: collapse;
 }
 table.optbl td {
-    padding: 2px 8px;
+    padding: 2px 4px;
     white-space: nowrap;
 }
 table.optbl td.lbl {
@@ -414,10 +476,10 @@ table.optbl td.note {
     color: var(--p2);
 }
 table.optbl input {
-    font: var(--mono);
-    width: 100px;
+    font: var(--font);
+    width: 60px;
     text-align: right;
-    border: 1px solid #BBB;
+    border: 1px solid #CCC;
     padding: 1px 2px;
 }
 table.optbl button {

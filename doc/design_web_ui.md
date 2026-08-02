@@ -183,6 +183,7 @@ they are already the de-facto GUI API).
 | `log`       | `sdr_get_log()` (server-side fan-out)        | JSON     | 200 ms      |
 | `array_stat`| `sdr_rcv_array_stat()` + beams + ant_pos     | JSON     | 500 ms      |
 | `opts`      | current `sdr_rcv_setopt()` option values     | JSON     | 200 ms      |
+| `cfg`       | receiver configuration (`sdr_web_cfg_t`)     | JSON     | on get      |
 | `psd`       | `sdr_rcv_rfch_psd()` (rfch 0: all RF CHs)    | binary 1 | 100 ms      |
 | `corr`      | `sdr_rcv_corr_stat()`                        | binary 2 | 100 ms      |
 | `corr_hist` | `sdr_rcv_corr_hist()`                        | binary 3 | 100 ms      |
@@ -217,6 +218,25 @@ Notes:
 | `array_beam`| `rfch`, `az`, `el` (deg) | `sdr_rcv_array_set_beam()` |
 | `array_save`| `file` (default array_calib.txt) | `sdr_rcv_array_save()` |
 | `array_load`| `file` (default array_calib.txt) | `sdr_rcv_array_load()` |
+
+Receiver lifecycle commands (enabled when `pocket_trk` passes its
+configuration via `sdr_web_set_cfg()`; the flat values mirror the
+`sdr_web_cfg_t` fields, with `fs`/`fo` in MHz and multi-value fields as
+comma-separated strings, output paths separated by `|`):
+
+| cmd        | arguments                                    | action     |
+|------------|----------------------------------------------|------------|
+| `start`    | -                                            | open the receiver from the stored configuration |
+| `stop`     | -                                            | close the running receiver (Web UI stays up) |
+| `set_inp`  | `inp`, `file`, `fmt`, `fs`, `fo`, `IQ`, `bits`, `toff`, `tscale`, `bus`, `port`, `conf`, `driver` | update input configuration |
+| `set_sig`  | `sigs` ("SIG:prns ..."), `opt`               | update signal configuration |
+| `set_out`  | `types`, `paths`                             | update output streams |
+
+`set_*` are rejected while the receiver runs. On `start`/`stop` the server
+broadcasts an updated `hello` (with `run` and `cfg_ena` flags) to all
+clients. With `-web`, `pocket_trk` no longer exits when a file input ends or
+the initial open fails; it stays idle until started from the Web UI or
+interrupted.
 
 Every command is answered with an `ack` JSON message. `setopt` accepts only
 the key names already handled by `sdr_rcv_setopt()`.

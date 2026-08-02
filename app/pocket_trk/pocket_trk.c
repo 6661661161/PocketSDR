@@ -28,6 +28,7 @@
 //                   -log and -raw options
 //  2026-08-01  1.12 add -web and -html options for Web UI
 //  2026-08-02  1.13 add -arch and -geom options for antenna array
+//                   support receiver lifecycle control by the Web UI
 //
 #include <math.h>
 #include <signal.h>
@@ -199,6 +200,9 @@ int main(int argc, char **argv)
     char web_addr[64] = "";
     int web_port = 0;
     const char *html_dir = "", *geom_file = "";
+    sdr_web_cfg_t cfg;
+
+    memset(&cfg, 0, sizeof(cfg));
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-sig") && i + 1 < argc) {
@@ -209,6 +213,11 @@ int main(int argc, char **argv)
             for (int j = 0; j < n && nch < SDR_MAX_NCH; j++) {
                 sigs[nch] = sig;
                 prns[nch++] = nums[j];
+            }
+            if (cfg.nsig < SDR_WEB_MAX_SIG) { // for Web UI configuration
+                snprintf(cfg.sig[cfg.nsig], sizeof(cfg.sig[0]), "%s", sig);
+                snprintf(cfg.prn[cfg.nsig], sizeof(cfg.prn[0]), "%s", argv[i]);
+                cfg.nsig++;
             }
         } else if (!strcmp(argv[i], "-rfch") && i + 1 < argc) {
             size_t len = strlen(rfch_opt);
@@ -334,42 +343,75 @@ int main(int argc, char **argv)
         rcv = sdr_rcv_open_dev(sigs, prns, nch, bus, port, conf_file, types,
             paths, rfch_opt);
     }
-    if (!rcv) {
+    if (!rcv && web_port <= 0) {
         return -1;
     }
     if (*geom_file) { // array element positions
-        double ant_pos[SDR_MAX_RFCH*3] = {0};
         int ant_ena[SDR_MAX_RFCH] = {0};
-        int nant = sdr_array_geom_load(geom_file, ant_pos, SDR_MAX_RFCH);
-        for (int i = 0; i < nant; i++) ant_ena[i] = 1;
-        if (nant <= 0 || !sdr_rcv_array_ant_pos(rcv, ant_pos, ant_ena)) {
+        cfg.nant = sdr_array_geom_load(geom_file, (double *)cfg.ant_pos,
+            SDR_MAX_RFCH);
+        for (int i = 0; i < cfg.nant; i++) ant_ena[i] = 1;
+        if (cfg.nant <= 0 || (rcv && !sdr_rcv_array_ant_pos(rcv,
+            (const double *)cfg.ant_pos, ant_ena))) {
             fprintf(stderr, "array geometry load error: %s\n", geom_file);
         }
     }
     if (web_port > 0) {
         if ((web = sdr_web_start(rcv, web_addr, web_port, html_dir))) {
+            cfg.inp = *file ? 1 : (*driver ? 2 : 0);
+            snprintf(cfg.file, sizeof(cfg.file), "%s", file);
+            cfg.fmt = fmt;
+            cfg.fs = fs;
+            memcpy(cfg.fo, fo, sizeof(cfg.fo));
+            memcpy(cfg.IQ, IQ, sizeof(cfg.IQ));
+            memcpy(cfg.bits, bits, sizeof(cfg.bits));
+            cfg.toff = toff;
+            cfg.tscale = tscale;
+            cfg.bus = bus;
+            cfg.port = port;
+            snprintf(cfg.conf_file, sizeof(cfg.conf_file), "%s", conf_file);
+            snprintf(cfg.driver, sizeof(cfg.driver), "%s", driver);
+            memcpy(cfg.str_type, types, sizeof(cfg.str_type));
+            for (int i = 0; i < SDR_MAX_STR; i++) {
+                snprintf(cfg.str_path[i], sizeof(cfg.str_path[0]), "%s",
+                    paths[i]);
+            }
+            snprintf(cfg.opt, sizeof(cfg.opt), "%s", rfch_opt);
+            sdr_web_set_cfg(web, &cfg);
             printf("Web UI: http://%s:%d/\n",
                 *web_addr ? web_addr : "127.0.0.1", web_port);
         } else {
             fprintf(stderr, "web server start error port=%d\n", web_port);
+            if (!rcv) return -1;
         }
     }
     if (tint > 0.0) {
         printf("%s", ESC_HCUR);
     }
-    while (!intr && rcv->state) { // wait for interrupt or file end
-        if (tint > 0.0) {
-            nrow = print_rcv_stat(rcv, nrow, max_row);
+    if (web) { // run until interrupt; receiver lifecycle by the Web UI
+        while (!intr) {
+            sdr_rcv_t *cur = sdr_web_rcv_lock(web);
+            if (tint > 0.0) {
+                nrow = print_rcv_stat(cur, nrow, max_row);
+            }
+            sdr_web_rcv_unlock(web);
+            sdr_sleep_msec(tint > 0.0 ? (int)(tint * 1000) : 100);
         }
-        sdr_sleep_msec(tint > 0.0 ? (int)(tint * 1000) : 100);
+        rcv = sdr_web_stop(web);
+    } else {
+        while (!intr && rcv->state) { // wait for interrupt or file end
+            if (tint > 0.0) {
+                nrow = print_rcv_stat(rcv, nrow, max_row);
+            }
+            sdr_sleep_msec(tint > 0.0 ? (int)(tint * 1000) : 100);
+        }
     }
     if (tint > 0.0) {
         print_rcv_stat(rcv, nrow, max_row);
         printf("  TIME(s) = %.3f\n", (sdr_get_tick() - tt) * 1e-3);
         printf("%s", ESC_VCUR);
     }
-    sdr_web_stop(web);
-    sdr_rcv_close(rcv);
+    if (rcv) sdr_rcv_close(rcv);
     
     if (*debug_file) {
         traceclose();

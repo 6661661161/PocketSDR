@@ -25,6 +25,7 @@
 //  2026-07-19  1.17 support extended coherent tracking for pilot signals
 //  2026-07-24  1.18 support up to 8 output streams with selectable types
 //  2026-08-01  1.19 add Web UI server APIs (sdr_web.c)
+//  2026-08-02  1.20 add Web UI receiver configuration and lifecycle APIs
 //
 #ifndef POCKET_SDR_H
 #define POCKET_SDR_H
@@ -336,6 +337,30 @@ typedef struct {                // SDR antenna array type
     double rms;                 // calibration RMS (m)
 } sdr_array_t;
 
+#define SDR_WEB_MAX_SIG 64      // max signal entries in Web UI configuration
+
+typedef struct {                // Web UI receiver configuration type
+    int inp;                    // input source (0:USB device,1:file,2:SoapySDR)
+    char file[1024];            // IF data file path
+    int fmt;                    // IF data format (SDR_FMT_???)
+    double fs;                  // sampling rate (sps)
+    double fo[SDR_MAX_RFCH];    // LO frequencies (Hz)
+    int IQ[SDR_MAX_RFCH];       // sampling types (1:I,2:IQ)
+    int bits[SDR_MAX_RFCH];     // sample bits (2 or 3)
+    double toff, tscale;        // replay time offset (s) and time scale
+    int bus, port;              // USB bus and port numbers (-1:any)
+    char conf_file[1024];       // device configuration file
+    char driver[32];            // SoapySDR driver
+    int nsig;                   // number of signal entries
+    char sig[SDR_WEB_MAX_SIG][16]; // signal IDs
+    char prn[SDR_WEB_MAX_SIG][256]; // PRN number lists
+    int str_type[SDR_MAX_STR];  // output stream types (SDR_STR_???)
+    char str_path[SDR_MAX_STR][1024]; // output stream paths
+    char opt[1024];             // receiver options
+    int nant;                   // number of array antenna elements
+    double ant_pos[SDR_MAX_RFCH][3]; // element positions in body-frame (m)
+} sdr_web_cfg_t;
+
 typedef struct sdr_rcv_tag {    // SDR receiver type
     int state;                  // state (0:stop,1:run)
     int dev;                    // SDR device type (SDR_DEV_???)
@@ -617,7 +642,10 @@ int sdr_rcv_set_filt(sdr_rcv_t *rcv, int ch, double bw, double freq, int order);
 // sdr_web.c
 sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
     const char *html_dir);
-void sdr_web_stop(sdr_web_t *web);
+void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg);
+sdr_rcv_t *sdr_web_stop(sdr_web_t *web);
+sdr_rcv_t *sdr_web_rcv_lock(sdr_web_t *web);
+void sdr_web_rcv_unlock(sdr_web_t *web);
 
 #ifdef __cplusplus
 }
