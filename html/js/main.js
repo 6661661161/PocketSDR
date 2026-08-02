@@ -100,6 +100,7 @@ ws.on('error', (msg) => {
 // global subscriptions and start ----------------------------------------------
 ws.on('open', () => {
     ws.sub('rcv_stat', {cyc: 200});
+    ws.sub('pvt_sol', {cyc: 200}); // solution history collected page-wide
 });
 ws.connect();
 const hash = ['receiver', 'rfch', 'bbch', 'corr', 'sats', 'sol', 'array',

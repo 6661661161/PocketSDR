@@ -62,7 +62,7 @@ export class SolPage {
         this.plots = [0, 1, 2, 3].map(i => new Plot(
             this.el.querySelector('#so-plt' + i), {
             margin: [45, 15, 6, i == 3 ? 18 : 6], taxis: 1,
-            xticks: i == 3 ? true : true}));
+            xlabels: i == 3})); // time labels only on the bottom panel
         this.horiPlot = new Plot(this.el.querySelector('#so-plt4'), {
             margin: [50, 20, 22, 32], aspect: 1, title: 'Pos E/N (m)',
             xlabel: 'Pos E (m)'});
@@ -94,8 +94,7 @@ export class SolPage {
         this.el.querySelector('#so-hori').style.display = enu ? 'none' : '';
         this.render();
     }
-    updateSol(msg) {
-        if (!this.active) return;
+    updateSol(msg) { // solutions are collected even when the page is hidden
         const f = msg.str.split(/\s+/);
         if (f.length < 7) return;
         this.el.querySelector('#so-sol').textContent =
@@ -176,11 +175,9 @@ export class SolPage {
     }
     show() {
         this.active = true;
-        this.app.ws.sub('pvt_sol', {cyc: 200});
         this.setMode();
     }
     hide() {
         this.active = false;
-        this.app.ws.unsub('pvt_sol');
     }
 }

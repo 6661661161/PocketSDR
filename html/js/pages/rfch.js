@@ -186,22 +186,24 @@ export class RfchPage {
         p.vline(fo, GR);
         p.line(x, y, P1);
         if (marks) {
-            let dy = 12;
+            let dy = 18;
             for (const s of this.sigs[msg.rfch] || []) {
                 const f = SIG_FREQ[s.sig];
                 if (!f || f < p.xlim[0] || f > p.xlim[1]) continue;
-                p.textPx(p.xp(f), p.ax[1] + dy, '▾ ' + s.sig,
-                    SYS_COLOR[s.sys] || FG, 'left', 'middle');
-                dy += 11;
+                const color = SYS_COLOR[s.sys] || FG;
+                p.markPx(p.xp(f), p.ax[1] + dy, 10, color);
+                p.textPx(p.xp(f) + 8, p.ax[1] + dy, s.sig, color, 'left',
+                    'middle');
+                dy += 14;
             }
         }
         p.end();
-        p.textPx(p.ax[0] + 4, p.ax[3] - 8, fo.toFixed(3) + ' MHz', FG,
+        p.textPx(p.ax[0] + 10, p.ax[3] - 14, fo.toFixed(3) + ' MHz', FG,
             'left', 'middle');
-        p.textPx(p.ax[2] - 4, p.ax[3] - 8,
+        p.textPx(p.ax[2] - 10, p.ax[3] - 14,
             (msg.IQ == 1 ? 'I' : 'IQ') + ' (' + msg.bits + ' bits)', FG,
             'right', 'middle');
-        p.textPx(p.ax[0] + 4, p.ax[1] + 8, 'CH' + msg.rfch, P1, 'left',
+        p.textPx(p.ax[0] + 10, p.ax[1] + 16, 'CH' + msg.rfch, P1, 'left',
             'middle', 'bold 12px Tahoma, sans-serif');
     }
     updatePsd(msg) {
@@ -241,9 +243,9 @@ export class RfchPage {
                 }
             }
             p.end();
-            p.textPx(p.ax[2] - 6, p.ax[1] + 12, 'Ave: ' + ave.toFixed(2), FG,
-                'right', 'middle');
-            p.textPx(p.ax[2] - 6, p.ax[1] + 24,
+            p.textPx(p.ax[2] - 10, p.ax[1] + 16, 'Ave: ' + ave.toFixed(2),
+                FG, 'right', 'middle');
+            p.textPx(p.ax[2] - 10, p.ax[1] + 30,
                 'Std: ' + Math.sqrt(vari).toFixed(2), FG, 'right', 'middle');
         }
     }

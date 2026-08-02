@@ -96,6 +96,14 @@ export class Plot {
         ctx.fillStyle = BG;
         ctx.fillRect(0, 0, this.w, this.h);
         this.ax = [ml, mt, this.w - mr, this.h - mb];
+        if (this.opt.aspect) { // keep plot area square
+            const side = Math.min(this.ax[2] - this.ax[0],
+                this.ax[3] - this.ax[1]);
+            const cx = (this.ax[0] + this.ax[2]) / 2;
+            const cy = (this.ax[1] + this.ax[3]) / 2;
+            this.ax = [cx - side / 2, cy - side / 2, cx + side / 2,
+                cy + side / 2];
+        }
         let xs = (this.ax[2] - this.ax[0]) / (this.xlim[1] - this.xlim[0]);
         let ys = (this.ax[3] - this.ax[1]) / (this.ylim[1] - this.ylim[0]);
         if (this.opt.aspect) xs = ys = Math.min(xs, ys);
@@ -152,8 +160,10 @@ export class Plot {
                 ctx.moveTo(px, this.ax[3]);
                 ctx.lineTo(px, this.ax[3] - 5);
                 ctx.stroke();
-                ctx.fillText(this.opt.taxis ? timeLabel(x) :
-                    x.toFixed(dec(this.xt)), px, this.ax[3] + 4);
+                if (this.opt.xlabels !== false) {
+                    ctx.fillText(this.opt.taxis ? timeLabel(x) :
+                        x.toFixed(dec(this.xt)), px, this.ax[3] + 4);
+                }
             }
         }
         ctx.textAlign = 'right';
@@ -273,6 +283,17 @@ export class Plot {
         const px = this.xp(x), py0 = this.yp(y0), py1 = this.yp(y1);
         ctx.fillRect(px - wpix / 2, Math.min(py0, py1), wpix,
             Math.abs(py0 - py1));
+    }
+    // downward triangle mark in pixel coordinates
+    markPx(px, py, size, color) {
+        const ctx = this.ctx;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(px, py + size / 2);
+        ctx.lineTo(px - size / 2, py - size / 2);
+        ctx.lineTo(px + size / 2, py - size / 2);
+        ctx.closePath();
+        ctx.fill();
     }
     // downward triangle mark in data coordinates
     mark(x, y, size, color) {

@@ -4,7 +4,7 @@ const SYSTEMS = ['ALL', 'GPS', 'GLONASS', 'Galileo', 'QZSS', 'BeiDou',
     'NavIC', 'SBAS'];
 const COLS = [ // [label, align]
     ['CH', ''], ['RF', 'c'], ['SAT', 'c'], ['SIG', 'c'], ['PRN', 'c'],
-    ['LOCK(s)', ''], ['C/N0', ''], ['(dB-Hz)', 'l'], ['COFF(ms)', ''],
+    ['LOCK(s)', ''], ['C/N0', ''], ['(dB-Hz)', 'l bar'], ['COFF(ms)', ''],
     ['DOP(Hz)', ''], ['ADR(cyc)', ''], ['SYNC', 'c'], ['#NAV', ''],
     ['#ERR', ''], ['#LOL', ''], ['FEC', '']
 ];
@@ -69,12 +69,12 @@ export class BbchPage {
             if (f.length == 15) f.splice(7, 0, ''); // no C/N0 bar column
             if (f.length < 16) continue;
             const cn0 = parseFloat(f[6]);
-            const bar = Math.min(Math.max((cn0 - 25.0) / 25.0, 0.0), 1.0) * 70;
+            const bar = Math.min(Math.max((cn0 - 25.0) / 25.0, 0.0), 1.0) * 90;
             const cls = parseFloat(f[5]) <= 0.0 ? 'idle' :
                 parseInt(f[0]) == this.srch ? 'srch' : '';
             const cells = f.map((v, i) => {
-                if (i == 7) return `<td class="l"><span class="cn0bar" ` +
-                    `style="width:${bar.toFixed(0)}px"></span></td>`;
+                if (i == 7) return `<td class="l bar"><span class="cn0bar" ` +
+                    `style="width:${bar.toFixed(0)}%"></span></td>`;
                 return `<td class="${COLS[i][1]}">${v}</td>`;
             });
             html += `<tr class="${cls}" data-ch="${f[0]}">` + cells.join('') +

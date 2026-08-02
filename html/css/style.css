@@ -8,8 +8,8 @@
     --p2: #888844;
     --p3: #BBBBBB;
     --warn: #FF4000;
-    --font: 14px Tahoma, "DejaVu Sans", sans-serif;
-    --mono: 14px Consolas, "DejaVu Sans Mono", monospace;
+    --font: 13px Tahoma, "DejaVu Sans", sans-serif;
+    --mono: 13px Consolas, "DejaVu Sans Mono", monospace;
 }
 * {
     box-sizing: border-box;
@@ -161,7 +161,7 @@ body {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-rows: 1fr minmax(160px, 38%);
+    grid-template-rows: 1fr minmax(200px, 45%);
 }
 .rcv-top {
     display: grid;
@@ -211,6 +211,7 @@ body {
     font: var(--mono);
     color: var(--p1);
     text-align: right;
+    flex: 1;
 }
 .rcv-row .val.warn {
     color: var(--warn);
@@ -261,14 +262,17 @@ table.chtbl tr.idle td {
 table.chtbl tr.srch td {
     color: blue;
 }
+table.chtbl th.bar, table.chtbl td.bar {
+    min-width: 90px;
+}
 .cn0bar {
     display: inline-block;
     height: 10px;
-    background: var(--p1);
+    background: #555555;
     vertical-align: middle;
 }
 tr.idle .cn0bar {
-    background: var(--p2);
+    background: #BBBBBB;
 }
 .warn-txt {
     color: var(--warn);

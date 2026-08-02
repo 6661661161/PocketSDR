@@ -19,7 +19,7 @@ export class CorrPage {
             `<div class="toolbar">` +
             `<label>BB CH</label>` +
             `<button id="co-prev">&lt;</button>` +
-            `<input type="number" id="co-ch" value="1" min="1">` +
+            `<select id="co-ch"></select>` +
             `<button id="co-next">&gt;</button>` +
             `<span class="mono" id="co-info"></span>` +
             `<span class="space"></span>` +
@@ -41,7 +41,9 @@ export class CorrPage {
             `<div class="plotbox"><canvas id="co-plt2"></canvas></div>` +
             `<div class="plotbox corr-plt3"><canvas id="co-plt3"></canvas>` +
             `</div></div>`;
-        this.el.querySelector('#co-ch').value = this.ch;
+        this.lockList = [];
+        this.listKey = '';
+        this.updateChList();
         this.el.querySelector('#co-iq').value = 'AveI';
         this.el.querySelector('#co-w').value = '5';
         this.el.querySelector('#co-t').value = '1';
@@ -52,10 +54,8 @@ export class CorrPage {
             margin: [45, 15, 25, 32], title: 'IP-QP', aspect: 1});
         this.plt3 = new Plot(this.el.querySelector('#co-plt3'), {
             margin: [45, 20, 25, 32], title: 'Time (s) - IP/QP'});
-        this.el.querySelector('#co-prev').onclick = () =>
-            this.setCh(this.ch - 1);
-        this.el.querySelector('#co-next').onclick = () =>
-            this.setCh(this.ch + 1);
+        this.el.querySelector('#co-prev').onclick = () => this.navCh(-1);
+        this.el.querySelector('#co-next').onclick = () => this.navCh(1);
         this.el.querySelector('#co-ch').onchange = () =>
             this.setCh(parseInt(this.el.querySelector('#co-ch').value) || 1);
         this.el.querySelector('#co-iq').onchange = () => this.draw();
@@ -73,24 +73,54 @@ export class CorrPage {
         });
         app.ws.on('ch_stat', (msg) => {
             if (!this.active) return;
-            const lines = msg.str.split('\n');
-            const f = lines.length > 2 ? lines[2].trim().split(/\s+/) : [];
-            this.stat = f.length >= 26 && parseInt(f[0]) == this.ch ? f : null;
+            const list = [];
+            let stat = null;
+            for (const line of msg.str.split('\n').slice(2)) {
+                const f = line.trim().split(/\s+/);
+                if (f.length < 26) continue;
+                list.push({ch: parseInt(f[0]), sat: f[2], sig: f[3]});
+                if (parseInt(f[0]) == this.ch) stat = f;
+            }
+            this.lockList = list;
+            this.stat = stat;
+            this.updateChList();
             this.updateInfo();
         });
         app.ws.on('sel_ch', (msg) => { // follow selection by other clients
             if (this.active && msg.ch > 0 && msg.ch != this.ch) {
                 this.ch = msg.ch;
-                this.el.querySelector('#co-ch').value = this.ch;
                 this.corr = this.hist = this.stat = null;
+                this.updateChList();
                 this.resub();
             }
         });
     }
+    // rebuild CH pulldown from locked channels ---------------------------------
+    updateChList() {
+        const sel = this.el.querySelector('#co-ch');
+        const key = this.lockList.map(e => e.ch).join(',') + ';' + this.ch;
+        if (key == this.listKey) return;
+        this.listKey = key;
+        const opts = this.lockList.map(e =>
+            `<option value="${e.ch}">${e.ch}: ${e.sat} ${e.sig}</option>`);
+        if (!this.lockList.find(e => e.ch == this.ch)) {
+            opts.unshift(`<option value="${this.ch}">${this.ch}: ---` +
+                `</option>`);
+        }
+        sel.innerHTML = opts.join('');
+        sel.value = this.ch;
+    }
+    navCh(dir) {
+        const chs = this.lockList.map(e => e.ch);
+        if (!chs.length) return;
+        let i = chs.indexOf(this.ch) + dir;
+        if (chs.indexOf(this.ch) < 0) i = 0;
+        this.setCh(chs[Math.min(Math.max(i, 0), chs.length - 1)]);
+    }
     setCh(ch) {
         this.ch = Math.min(Math.max(ch, 1), this.app.info.nch || 9999);
-        this.el.querySelector('#co-ch').value = this.ch;
         this.corr = this.hist = this.stat = null;
+        this.updateChList();
         this.resub();
     }
     resub() {
@@ -99,8 +129,8 @@ export class CorrPage {
         const T = parseFloat(this.el.querySelector('#co-t').value);
         this.app.ws.sub('corr', {ch: this.ch, cyc: 100, width: W * 1e-6});
         this.app.ws.sub('corr_hist', {ch: this.ch, cyc: 100, tspan: T});
-        this.app.ws.sub('ch_stat', {chno: this.ch, opt: 1, cyc: 200,
-            min_lock: 0.0});
+        this.app.ws.sub('ch_stat', {chno: 0, opt: 1, cyc: 200,
+            min_lock: 2.0});
     }
     updateInfo() {
         const f = this.stat;
@@ -124,9 +154,9 @@ export class CorrPage {
         p.ylim = mode == 'Q' ? [-R, R] :
             (mode == 'IQ' || mode == 'AveIQ') ? [0, R] : [-R * 0.3, R];
         p.begin();
-        p.hline(0, GR);
+        p.hline(0, '#000000');
         if (m) {
-            p.vline(m.coff, GR);
+            p.vline(m.coff, '#000000');
             const sign = m.C[0] >= 0.0 ? 1.0 : -1.0;
             const x = [], y = [];
             for (let i = 0; i < m.n; i++) {
@@ -159,8 +189,8 @@ export class CorrPage {
         p.xlim = [-R, R];
         p.ylim = [-R, R];
         p.begin();
-        p.vline(0, GR);
-        p.hline(0, GR);
+        p.vline(0, '#000000');
+        p.hline(0, '#000000');
         if (h) {
             p.ctx.fillStyle = P2;
             for (let i = 0; i < h.n; i++) {
@@ -195,15 +225,15 @@ export class CorrPage {
             p.point(t[h.n-1], ip[h.n-1], 9, P1);
         }
         p.end();
-        p.textPx(p.ax[2] - 70, p.ax[1] + 12, '— IP', P1, 'left');
-        p.textPx(p.ax[2] - 70, p.ax[1] + 24, '— QP', P2, 'left');
+        p.textPx(p.ax[2] - 80, p.ax[1] + 16, '— IP', P1, 'left');
+        p.textPx(p.ax[2] - 80, p.ax[1] + 30, '— QP', P2, 'left');
         const f = this.stat;
         if (f) {
-            p.textPx(p.ax[0] + 8, p.ax[1] + 12,
+            p.textPx(p.ax[0] + 12, p.ax[1] + 16,
                 `C/N0: ${f[6]} dB-Hz  COFF: ${f[8]} ms  DOP: ${f[9]} Hz  ` +
                 `ADR: ${f[10]} cyc  SYNC: ${f[11]}  #NAV: ${f[12]}`, FG,
                 'left');
-            p.textPx(p.ax[0] + 8, p.ax[3] - 12,
+            p.textPx(p.ax[0] + 12, p.ax[3] - 16,
                 `ERR_P: ${f[16]} cyc  ERR_C: ${f[17]} m  PLI: ${f[18]}  ` +
                 `NAV: ${f[20]}-${f[21]}-${f[22]}  WEEK: ${f[23]}  ` +
                 `TOW: ${f[24]} s`, FG, 'left');

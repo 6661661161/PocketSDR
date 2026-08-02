@@ -8,18 +8,18 @@ const SYSTEMS = ['ALL', 'GPS', 'GLONASS', 'Galileo', 'QZSS', 'BeiDou',
     'NavIC', 'SBAS'];
 const SYS_ORDER = 'GREJCIS';
 
-const ROWS_L = [
+const ROWS_L = [ // id '!': title-only row, label '': value-only row
     ['time', 'Receiver Time (s)'],
     ['src', 'Input Source'],
     ['fmt', 'Fmt / # RF CH / # Array CH'],
-    ['fo1', 'LO Frequencies 1-4 (MHz)'],
-    ['fo2', 'LO Frequencies 5-8 (MHz)'],
+    ['!', 'LO Frequencies (MHz)'],
+    ['fo1', ''],
+    ['fo2', ''],
     ['IQ', 'Sampling'],
     ['fs', 'Sampling Rate (Msps)'],
     ['nch', '# BB CH Locked/All'],
     ['rate', 'IF Data Rate (MB/s)'],
-    ['buff', 'IF Data Buffer Usage (%)'],
-    ['sum', 'IF Data Log (MB)']
+    ['buff', 'IF Data Buffer Usage (%)']
 ];
 const ROWS_R = [
     ['stime', 'Time (GPST)'],
@@ -29,7 +29,9 @@ const ROWS_R = [
     ['hgt', 'Altitude (m)'],
     ['nsat', '# Sats Used/All'],
     ['latency', 'Solution Latency (s)'],
-    ['count', '# PVT/OBS/NAV']
+    ['!', 'Output'],
+    ['count', '# PVT/OBS/NAV'],
+    ['sum', 'IF Data Log (MB)']
 ];
 
 // jet colormap (v: 0-1) -------------------------------------------------------
@@ -59,9 +61,13 @@ export class RcvPage {
         this.satInfo = {};  // sat -> {az, el, pvt, ...}
         this.sats = [];
         this.satsKey = '';
+        this.elMask = 15.0;
         this.el = document.createElement('div');
         const rows = (defs) => defs.map(([id, lbl]) =>
-            `<div class="rcv-row"><span class="lbl">${lbl}</span>` +
+            id == '!' ?
+            `<div class="rcv-row"><span class="lbl">${lbl}</span></div>` :
+            `<div class="rcv-row">` +
+            (lbl ? `<span class="lbl">${lbl}</span>` : '') +
             `<span class="val" id="rcv-${id}">---</span></div>`).join('');
         this.el.innerHTML =
             `<div class="toolbar">` +
@@ -104,6 +110,9 @@ export class RcvPage {
             this.el.querySelector('#rcv-gain-l').style.display =
                 msg.narch > 0 ? '' : 'none';
             this.draw();
+        });
+        app.ws.on('opts', (msg) => {
+            if (msg.el_mask !== undefined) this.elMask = msg.el_mask;
         });
         this.el.querySelector('#rcv-gain').onchange = () => this.draw();
         this.sky.onclick = (ev) => this.onSkyClick(ev);
@@ -226,13 +235,14 @@ export class RcvPage {
         if (arch && this.el.querySelector('#rcv-gain').checked) {
             this.drawGainOverlay(ctx, cx, cy, R, arch);
         }
-        ctx.strokeStyle = GR;
         ctx.lineWidth = 1;
         for (const el of [0, 30, 60]) {
+            ctx.strokeStyle = el == 0 ? '#000000' : GR;
             ctx.beginPath();
             ctx.arc(cx, cy, R * (90 - el) / 90, 0, 2 * Math.PI);
             ctx.stroke();
         }
+        ctx.strokeStyle = GR;
         for (let az = 0; az < 360; az += 30) {
             ctx.beginPath();
             ctx.moveTo(cx, cy);
@@ -251,17 +261,21 @@ export class RcvPage {
         ctx.font = '9px Tahoma, sans-serif';
         for (const sat of this.sats) {
             const si = this.satInfo[sat] || {az: 0, el: 0, pvt: 0};
+            if (si.el <= 0.0) continue; // suppress invalid satellites
             const rr = R * (90 - si.el) / 90;
             const x = cx + rr * Math.sin(si.az * D2R);
             const y = cy - rr * Math.cos(si.az * D2R);
             const color = SYS_COLOR[satSys(sat)] || FG;
+            const low = si.el < this.elMask;
             ctx.beginPath();
             ctx.arc(x, y, 10, 0, 2 * Math.PI);
-            ctx.fillStyle = si.pvt ? color : BG;
-            ctx.fill();
-            ctx.strokeStyle = color;
+            if (!low) { // low elevation: black edge, no fill
+                ctx.fillStyle = si.pvt ? color : BG;
+                ctx.fill();
+            }
+            ctx.strokeStyle = '#000000';
             ctx.stroke();
-            ctx.fillStyle = si.pvt ? BG : FG;
+            ctx.fillStyle = si.pvt && !low ? BG : FG;
             ctx.fillText(sat, x, y);
         }
         if (arch) this.drawBeamMark(ctx, cx, cy, R, arch);
@@ -362,19 +376,16 @@ export class RcvPage {
             const color = (si.pvt ? SYS_COLOR : SYS_COLOR2)[satSys(sat)] ||
                 FG;
             if (si.pvt) nuse++;
-            const sigs = this.sigStat[sat];
-            if (sys == 'ALL') {
-                const cn0 = Math.max(...sigs.map(s => s.cn0));
-                p.barY(i, 20, cn0, 6, color);
-            }
-            else {
-                sigs.forEach((s, j) => {
-                    const px = p.xp(i) + (j - (sigs.length - 1) / 2) * 8;
-                    const py0 = p.yp(20), py1 = p.yp(s.cn0);
-                    ctx.fillStyle = color;
-                    ctx.fillRect(px - 3, Math.min(py0, py1), 6,
-                        Math.abs(py0 - py1));
-                });
+            // stack signal bars, highest C/N0 first, black edges
+            const sigs = [...this.sigStat[sat]].sort((a, b) => b.cn0 - a.cn0);
+            for (const s of sigs) {
+                const px = p.xp(i), py0 = p.yp(20), py1 = p.yp(s.cn0);
+                if (py0 - py1 < 1.0) continue;
+                ctx.fillStyle = color;
+                ctx.fillRect(px - 3, py1, 6, py0 - py1);
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(px - 3, py1, 6, py0 - py1);
             }
         });
         p.end();
@@ -383,20 +394,20 @@ export class RcvPage {
                 sys == 'ALL' ? sat.replace(/^[A-Z]/, '') : sat, FG,
                 'center', 'top');
         });
-        p.textPx(p.ax[0] + 6, p.ax[1] + 10,
+        p.textPx(p.ax[0] + 10, p.ax[1] + 16,
             '#Sats: ' + nuse + '/' + sats.length, FG, 'left');
         if (sys == 'ALL') {
             const present = [...new Set(sats.map(satSys))];
-            let px = p.ax[2] - 6;
+            let px = p.ax[2] - 10;
             for (const s of present.reverse()) {
-                p.textPx(px, p.ax[1] + 10, s, SYS_COLOR[s], 'right');
+                p.textPx(px, p.ax[1] + 16, s, SYS_COLOR[s], 'right');
                 px -= 14;
             }
         }
         else {
             const sigs = [...new Set([].concat(
                 ...sats.map(s => this.sigStat[s].map(x => x.sig))))];
-            p.textPx(p.ax[2] - 6, p.ax[1] + 10, 'Signals: ' + sigs.join(' '),
+            p.textPx(p.ax[2] - 10, p.ax[1] + 16, 'Signals: ' + sigs.join(' '),
                 FG, 'right');
         }
     }
@@ -404,14 +415,13 @@ export class RcvPage {
         this.active = true;
         this.satsKey = '';
         this.resub();
-        this.app.ws.sub('pvt_sol', {cyc: 200});
         this.app.ws.sub('array_stat', {cyc: 500});
+        this.app.ws.get('opts'); // for elevation mask
     }
     hide() {
         this.active = false;
         this.app.ws.unsub('ch_stat');
         this.app.ws.unsub('sat_stat');
-        this.app.ws.unsub('pvt_sol');
         this.app.ws.unsub('array_stat');
     }
 }
