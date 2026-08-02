@@ -14,7 +14,7 @@
     --plot-title-font: bold 10px "Noto Sans", sans-serif;
     /*--sky-sat-size: 12px;*/
     /*--sky-sat-font: 12px Tahoma, "DejaVu Sans", sans-serif;*/
-    --tbl-font: 10px "Noto Sans", sans-serif;
+    --tbl-font: 9px "Noto Sans", sans-serif;
 }
 * {
     box-sizing: border-box;
@@ -44,7 +44,6 @@ body {
     justify-content: space-between;
     font-weight: bold;
     padding: 1px 10px;
-    gap: 8px;
     background: var(--bg1);
     border: 1px solid #CCC
 }
@@ -56,9 +55,9 @@ body {
     font: var(--font);
     font-weight: bold;
     background: var(--bg1);
-    border: 1px solid #AAA;
-    width: 90px;
-    padding: 1px 0;
+    border: 1px solid #CCC;
+    width: 65px;
+    padding: 1px 2px;
     cursor: pointer;
 }
 #btnbar button:hover {
@@ -77,7 +76,7 @@ body {
 
 /* tab bar */
 #tabbar {
-    font: 10px var(--font)
+    font: var(--font)
     font-weight: bold;
     display: flex;
     background: var(--bg1);
@@ -116,7 +115,7 @@ body {
 #statusbar {
     display: flex;
     justify-content: space-between;
-    padding: 2px 10px;
+    padding: 1px 4px;
     background: white;
     border: 1px solid #CCC;
     color: darkblue;
@@ -124,7 +123,7 @@ body {
     overflow: hidden;
 }
 #msg2 {
-    min-width: 130px;
+    min-width: 120px;
     text-align: right;
 }
 
@@ -133,7 +132,7 @@ body {
     display: flex;
     align-items: center;
     gap: 2px;
-    padding: 2px 10px;
+    padding: 1px 4px;
     background: var(--bg1);
     border: 1px solid #CCC;
     white-space: nowrap;
@@ -141,6 +140,9 @@ body {
 }
 .toolbar .space {
     flex: 1;
+}
+.toolbar .ttl {
+    font-weight: bold;
 }
 .toolbar select, .toolbar input[type=text], .toolbar input[type=number] {
     font: var(--font);
@@ -153,9 +155,8 @@ body {
 }
 .toolbar button {
     font: var(--font);
-    background: var(--bg1);
     border: 1px solid #CCC;
-    padding: 1px 8px;
+    padding: 1px 4px;
     cursor: pointer;
 }
 .toolbar button:hover {
@@ -167,7 +168,7 @@ body {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-rows: 1fr minmax(200px, 49%);
+    grid-template-rows: 1fr minmax(180px, 47%);
 }
 .rcv-top {
     display: grid;
@@ -178,7 +179,7 @@ body {
 .rcv-body2 {
     border: 2px solid var(--bg1);
     overflow: auto;
-    padding: 16px 12px;
+    padding: 10px 12px;
 }
 .rcv-sky {
     border: 2px solid var(--bg1);
@@ -464,7 +465,7 @@ table.optbl button {
     padding: 2px 2px;
 }
 .cfg-row label {
-    width: 160px;
+    width: 110px;
     font-weight: bold;
     color: #333;
 }
@@ -506,6 +507,9 @@ table.cfg-tbl th {
     font-weight: bold;
     color: #333;
     width: 56px;
+}
+.sig-sec .sg-prn {
+    width: 80px;
 }
 .sig-sec .sig-grid {
     flex: 1;

@@ -8,7 +8,7 @@ export class OutPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>Output Options</label>` +
+            `<label class="ttl">Output Options</label>` +
             `<span class="space"></span>` +
             `<span class="warn-txt" id="ot-note"></span>` +
             `<button id="ot-apply">Apply</button>` +

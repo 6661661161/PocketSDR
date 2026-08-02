@@ -102,10 +102,9 @@ export class CorrPage {
         if (key == this.listKey) return;
         this.listKey = key;
         const opts = this.lockList.map(e =>
-            `<option value="${e.ch}">${e.ch}: ${e.sat} ${e.sig}</option>`);
+            `<option value="${e.ch}">${e.ch}</option>`);
         if (!this.lockList.find(e => e.ch == this.ch)) {
-            opts.unshift(`<option value="${this.ch}">${this.ch}: ---` +
-                `</option>`);
+            opts.unshift(`<option value="${this.ch}">${this.ch}</option>`);
         }
         sel.innerHTML = opts.join('');
         sel.value = this.ch;

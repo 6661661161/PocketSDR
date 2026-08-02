@@ -38,7 +38,6 @@ export class SolPage {
             `<div class="toolbar">` +
             `<label>Type</label><select id="so-type">` +
             `<option>Pos ENU</option><option>Pos Horiz</option></select>` +
-            `<span class="mono" id="so-sol"></span>` +
             `<span class="space"></span>` +
             `<button id="so-ref">Ref Pos</button>` +
             `<button id="so-clear">Clear</button>` +
@@ -61,12 +60,12 @@ export class SolPage {
         const titles = ['Pos E (m)', 'Pos N (m)', 'Pos U (m)', '# Sats'];
         this.plots = [0, 1, 2, 3].map(i => new Plot(
             this.el.querySelector('#so-plt' + i), {
-            margin: [28, 15, 6, i == 3 ? 18 : 3], taxis: 1,
+            margin: [28, 15, i == 0 ? 16 : 6, i == 3 ? 18 : 3], taxis: 1,
             xlabels: i == 3})); // time labels only on the bottom panel
         this.horiPlot = new Plot(this.el.querySelector('#so-plt4'), {
-            margin: [50, 20, 22, 32], aspect: 1, title: 'Pos E/N (m)',
-            xlabel: 'Pos E (m)'});
+            margin: [40, 15, 16, 20]});
         this.titles = titles;
+        this.solStr = '';
         this.el.querySelector('#so-type').onchange = () => this.setMode();
         this.el.querySelector('#so-span').onchange = () => this.render();
         this.el.querySelector('#so-rng').onchange = () => this.render();
@@ -97,12 +96,12 @@ export class SolPage {
     updateSol(msg) { // solutions are collected even when the page is hidden
         const f = msg.str.split(/\s+/);
         if (f.length < 7) return;
-        this.el.querySelector('#so-sol').textContent =
-            `${f[0]} ${f[1]} GPST  ${f[2]}°  ${f[3]}°  ${f[4]} m  ` +
-            `${f[5]} ${f[6]}`;
-        this.el.querySelector('#so-sol').style.color =
-            f[6] == 'FIX' ? '#003020' : '#888844';
-        if (f[6] != 'FIX' || f[1] == this.last) return;
+        this.solStr = `${f[0]} ${f[1]} GPST  ${f[2]}°  ${f[3]}°  ` +
+            `${f[4]} m  ${f[5]} ${f[6]}`;
+        if (f[6] != 'FIX' || f[1] == this.last) {
+            if (this.active) this.render();
+            return;
+        }
         this.last = f[1];
         const t = f[1].split(':');
         const tod = parseInt(t[0]) * 3600 + parseInt(t[1]) * 60 +
@@ -131,6 +130,7 @@ export class SolPage {
             const tend = n > 0 ? t[n-1] : 0.0;
             for (let i = 0; i < 4; i++) {
                 const p = this.plots[i];
+                p.opt.title = i == 0 ? this.solStr : ''; // solution as title
                 p.xlim = [tend - span, tend + span * 0.001];
                 if (i < 3) {
                     const c = n > 0 ? enu[n-1][i] : 0.0;
@@ -158,7 +158,11 @@ export class SolPage {
         }
         else {
             const p = this.horiPlot;
-            p.xlim = [-rng, rng];
+            p.opt.title = this.solStr;
+            p.resize(); // full width with equal E/N scale
+            const [ml, mr, mt, mb] = p.opt.margin;
+            const ratio = Math.max((p.w - ml - mr) / (p.h - mt - mb), 0.1);
+            p.xlim = [-rng * ratio, rng * ratio];
             p.ylim = [-rng, rng];
             p.begin();
             p.vline(0, GR);

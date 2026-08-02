@@ -29,8 +29,9 @@ export class OptsPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>System Options (applied to the running receiver; ` +
-            `changes are not persistent)</label>` +
+            `<label class="ttl">System Options</label>` +
+            `<label>(applied to the running receiver; changes are not ` +
+            `persistent)</label>` +
             `<span class="space"></span>` +
             `<button id="op-refresh">Refresh</button>` +
             `</div>` +

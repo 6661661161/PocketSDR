@@ -73,8 +73,6 @@ export class RcvPage {
             `<span class="val" id="rcv-${id}">---</span></div>`).join('');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>Output</label><span id="rcv-leds">` +
-            '<span class="led"></span>'.repeat(8) + `</span>` +
             `<span class="space"></span>` +
             `<label id="rcv-gain-l" style="display:none">` +
             `<input type="checkbox" id="rcv-gain" checked> Gain</label>` +
@@ -83,6 +81,8 @@ export class RcvPage {
             `</select>` +
             `<label>System</label><select id="rcv-sys">` +
             SYSTEMS.map(s => `<option>${s}</option>`).join('') + `</select>` +
+            `<label>Output</label><span id="rcv-leds">` +
+            '<span class="led"></span>'.repeat(8) + `</span>` +
             `</div>` +
             `<div class="rcv-main">` +
             `<div class="rcv-top">` +

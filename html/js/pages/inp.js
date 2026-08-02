@@ -9,7 +9,7 @@ export class InpPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>Input Options</label>` +
+            `<label class="ttl">Input Options</label>` +
             `<span class="space"></span>` +
             `<span class="warn-txt" id="in-note"></span>` +
             `<button id="in-apply">Apply</button>` +
