@@ -481,6 +481,12 @@ table.optbl button {
 .cfg-body input.wide {
     width: min(480px, 60vw);
 }
+.op-body input.wide {
+    font: var(--font);
+    width: min(640px, 75vw);
+    border: 1px solid #CCC;
+    padding: 1px 3px;
+}
 table.cfg-tbl {
     border-collapse: collapse;
     margin-top: 8px;
@@ -506,7 +512,7 @@ table.cfg-tbl th {
 .sig-sec .sig-head {
     font-weight: bold;
     color: #333;
-    width: 56px;
+    width: 72px;
 }
 .sig-sec .sg-prn {
     width: 80px;
@@ -514,11 +520,16 @@ table.cfg-tbl th {
 .sig-sec .sig-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(auto-fill, 74px);
+    grid-template-columns: repeat(auto-fill, 62px);
     row-gap: 1px;
 }
-.sig-sec .sig-chk {
+.sig-sec .sig-chk, .sig-sec .sig-head {
+    display: flex;
+    align-items: center;
     white-space: nowrap;
+}
+.sig-sec input[type=checkbox] {
+    margin: 0 2px 0 0;
 }
 .cfg-note {
     color: var(--p2);
