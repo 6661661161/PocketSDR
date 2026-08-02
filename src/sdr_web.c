@@ -65,10 +65,12 @@
 #define TOPIC_RFCH_STAT 5       // topic: RF channel status
 #define TOPIC_HIST      6       // topic: IF data histogram
 #define TOPIC_LOG       7       // topic: receiver log
-#define TOPIC_PSD       8       // topic: PSD (binary)
-#define TOPIC_CORR      9       // topic: correlator snapshot (binary)
-#define TOPIC_CORR_HIST 10      // topic: correlator history (binary)
-#define N_TOPIC         10      // number of topics
+#define TOPIC_ARRAY_STAT 8      // topic: antenna array status
+#define TOPIC_OPTS      9       // topic: system option values
+#define TOPIC_PSD       10      // topic: PSD (binary)
+#define TOPIC_CORR      11      // topic: correlator snapshot (binary)
+#define TOPIC_CORR_HIST 12      // topic: correlator history (binary)
+#define N_TOPIC         12      // number of topics
 
 #define MIN(x, y)      ((x) < (y) ? (x) : (y))
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
@@ -692,6 +694,75 @@ static void poll_log(sdr_web_t *web)
     }
 }
 
+// send antenna array status topic ---------------------------------------------
+static void send_array_stat(sdr_web_t *web, web_cli_t *cli)
+{
+    sdr_rcv_t *rcv = web->rcv;
+    char *buff = web->json_buff;
+    double rpy[3] = {0}, bias[SDR_MAX_RFCH] = {0}, rms = 0.0, az, el;
+    int nep = 0, n;
+
+    if (rcv->narch <= 0 || !rcv->array) {
+        ws_send_text(cli, "{\"type\":\"array_stat\",\"narch\":0}");
+        return;
+    }
+    int run = sdr_rcv_array_stat(rcv, rpy, bias, &rms, &nep);
+    n = snprintf(buff, JSON_BUFF_SIZE, "{\"type\":\"array_stat\","
+        "\"narch\":%d,\"nrfch\":%d,\"run\":%d,\"mode\":%d,"
+        "\"rpy\":[%.3f,%.3f,%.3f],\"rms\":%.4f,\"nep\":%d,\"bias\":[",
+        rcv->narch, rcv->nrfch, run, rcv->array->calib_mode, rpy[0] * R2D,
+        rpy[1] * R2D, rpy[2] * R2D, rms, nep);
+    for (int i = 0; i < rcv->nrfch; i++) {
+        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%.4f", i ? "," : "",
+            bias[i]);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "],\"beams\":[");
+    for (int m = 0; m < rcv->narch; m++) {
+        if (!sdr_rcv_array_get_beam(rcv, rcv->nrfch + m, &az, &el)) continue;
+        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s{\"ch\":%d,"
+            "\"az\":%.1f,\"el\":%.1f}", m ? "," : "", rcv->nrfch + m + 1,
+            az * R2D, el * R2D);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "],\"ant_pos\":[");
+    for (int i = 0; i < rcv->nrfch; i++) {
+        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s[%.4f,%.4f,%.4f]",
+            i ? "," : "", rcv->array->ant_pos[i][0],
+            rcv->array->ant_pos[i][1], rcv->array->ant_pos[i][2]);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "],\"ant_ena\":[");
+    for (int i = 0; i < rcv->nrfch; i++) {
+        n += snprintf(buff + n, JSON_BUFF_SIZE - n, "%s%d", i ? "," : "",
+            rcv->array->ant_ena[i]);
+    }
+    snprintf(buff + n, JSON_BUFF_SIZE - n, "]}");
+    ws_send_text(cli, buff);
+}
+
+// send system option values topic ---------------------------------------------
+static void send_opts(sdr_web_t *web, web_cli_t *cli)
+{
+    extern double sdr_epoch, sdr_lag_epoch, sdr_el_mask, sdr_sp_corr;
+    extern double sdr_t_acq, sdr_t_acq_ext, sdr_t_dll, sdr_t_coh;
+    extern double sdr_b_dll, sdr_b_pll, sdr_b_fll_w, sdr_b_fll_n;
+    extern double sdr_max_dop, sdr_thres_cn0_l, sdr_thres_cn0_u;
+    extern double sdr_thres_cn0_ext, sdr_thres_pli, sdr_max_acq;
+    extern int sdr_bump_jump, sdr_lost_th;
+    char buff[1024];
+
+    snprintf(buff, sizeof(buff), "{\"type\":\"opts\",\"epoch\":%.6g,"
+        "\"lag_epoch\":%.6g,\"el_mask\":%.6g,\"sp_corr\":%.6g,"
+        "\"t_acq\":%.6g,\"t_acq_ext\":%.6g,\"t_dll\":%.6g,\"t_coh\":%.6g,"
+        "\"b_dll\":%.6g,\"b_pll\":%.6g,\"b_fll_w\":%.6g,\"b_fll_n\":%.6g,"
+        "\"max_dop\":%.6g,\"thres_cn0_l\":%.6g,\"thres_cn0_u\":%.6g,"
+        "\"thres_cn0_ext\":%.6g,\"thres_pli\":%.6g,\"lost_th\":%d,"
+        "\"bump_jump\":%d,\"max_acq\":%.6g}", sdr_epoch, sdr_lag_epoch,
+        sdr_el_mask, sdr_sp_corr, sdr_t_acq, sdr_t_acq_ext, sdr_t_dll,
+        sdr_t_coh, sdr_b_dll, sdr_b_pll, sdr_b_fll_w, sdr_b_fll_n,
+        sdr_max_dop, sdr_thres_cn0_l, sdr_thres_cn0_u, sdr_thres_cn0_ext,
+        sdr_thres_pli, sdr_lost_th, sdr_bump_jump, sdr_max_acq);
+    ws_send_text(cli, buff);
+}
+
 // send PSD binary frames (rfch = 0: all RF CHs) -------------------------------
 static void send_psd(sdr_web_t *web, web_cli_t *cli, web_sub_t *sub)
 {
@@ -788,6 +859,8 @@ static void send_topic(sdr_web_t *web, web_cli_t *cli, int topic,
         case TOPIC_RFCH_STAT: send_rfch_stat(web, cli); break;
         case TOPIC_HIST     : send_hist     (web, cli, sub); break;
         case TOPIC_LOG      : send_log      (web, cli, sub); break;
+        case TOPIC_ARRAY_STAT: send_array_stat(web, cli); break;
+        case TOPIC_OPTS     : send_opts     (web, cli); break;
         case TOPIC_PSD      : send_psd      (web, cli, sub); break;
         case TOPIC_CORR     : send_corr     (web, cli, sub); break;
         case TOPIC_CORR_HIST: send_corr_hist(web, cli, sub); break;
@@ -799,7 +872,7 @@ static int topic_id(const char *name)
 {
     static const char *names[] = {
         "", "rcv_stat", "ch_stat", "sat_stat", "pvt_sol", "rfch_stat", "hist",
-        "log", "psd", "corr", "corr_hist"
+        "log", "array_stat", "opts", "psd", "corr", "corr_hist"
     };
     for (int i = 1; i <= N_TOPIC; i++) {
         if (!strcmp(name, names[i])) return i;
@@ -941,6 +1014,31 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
         snprintf(extra, sizeof(extra), "\"bw\":%.3f,\"freq\":%.3f,"
             "\"order\":%d", bw, freq, order);
         send_ack(cli, "get_filt", ok, extra);
+    } else if (!strcmp(cmd, "array_run")) { // 1:start, 0:stop, 2:clear
+        double run = 0.0;
+        jsn_num(msg, "run", &run);
+        int ok = sdr_rcv_array_run(web->rcv, (int)run);
+        send_ack(cli, "array_run", ok, NULL);
+    } else if (!strcmp(cmd, "array_mode")) { // 0:both, 1:bias, 2:rpy
+        double mode = 0.0;
+        jsn_num(msg, "mode", &mode);
+        int ok = sdr_rcv_array_set_mode(web->rcv, (int)mode);
+        send_ack(cli, "array_mode", ok, NULL);
+    } else if (!strcmp(cmd, "array_beam")) {
+        double rfch = 0.0, az = 0.0, el = 0.0;
+        jsn_num(msg, "rfch", &rfch);
+        jsn_num(msg, "az", &az);
+        jsn_num(msg, "el", &el);
+        int ok = sdr_rcv_array_set_beam(web->rcv, (int)rfch - 1, az * D2R,
+            el * D2R);
+        send_ack(cli, "array_beam", ok, NULL);
+    } else if (!strcmp(cmd, "array_save") || !strcmp(cmd, "array_load")) {
+        char file[256] = "array_calib.txt";
+        jsn_str(msg, "file", file, sizeof(file));
+        int ok = !strcmp(cmd, "array_save") ?
+            sdr_rcv_array_save(web->rcv, file) :
+            sdr_rcv_array_load(web->rcv, file);
+        send_ack(cli, cmd, ok, NULL);
     } else if (!strcmp(cmd, "setopt")) {
         char name[32] = "";
         double value = 0.0;

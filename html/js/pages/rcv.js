@@ -32,6 +32,14 @@ const ROWS_R = [
     ['count', '# PVT/OBS/NAV']
 ];
 
+// jet colormap (v: 0-1) -------------------------------------------------------
+function jetColor(v) {
+    v = Math.min(Math.max(v, 0.0), 1.0);
+    const c = (x) => Math.round(
+        Math.min(Math.max(1.5 - Math.abs(x), 0.0), 1.0) * 255);
+    return [c(4 * v - 3), c(4 * v - 2), c(4 * v - 1)];
+}
+
 // satellite system of satellite ID --------------------------------------------
 export function satSys(sat) {
     return sat[0] >= '0' && sat[0] <= '9' ? 'S' : sat[0];
@@ -62,6 +70,8 @@ export class RcvPage {
             `</select>` +
             `<label>System</label><select id="rcv-sys">` +
             SYSTEMS.map(s => `<option>${s}</option>`).join('') + `</select>` +
+            `<label id="rcv-gain-l" style="display:none">` +
+            `<input type="checkbox" id="rcv-gain" checked> Gain</label>` +
             `<span class="space"></span>` +
             `<label>Output</label><span id="rcv-leds">` +
             '<span class="led"></span>'.repeat(8) + `</span>` +
@@ -88,6 +98,43 @@ export class RcvPage {
         app.ws.on('pvt_sol', (msg) => this.updateSol(msg));
         app.ws.on('ch_stat', (msg) => this.updateChStat(msg));
         app.ws.on('sat_stat', (msg) => this.updateSatStat(msg));
+        app.ws.on('array_stat', (msg) => {
+            if (!this.active) return;
+            this.arrayStat = msg.narch > 0 ? msg : null;
+            this.el.querySelector('#rcv-gain-l').style.display =
+                msg.narch > 0 ? '' : 'none';
+            this.draw();
+        });
+        this.el.querySelector('#rcv-gain').onchange = () => this.draw();
+        this.sky.onclick = (ev) => this.onSkyClick(ev);
+    }
+    // selected array CH (0: none) ----------------------------------------------
+    archSel() {
+        const as = this.arrayStat;
+        const arch = parseInt(this.el.querySelector('#rcv-rf').value) || 0;
+        return as && as.narch > 0 && arch > as.nrfch &&
+            arch <= as.nrfch + as.narch ? arch : 0;
+    }
+    onSkyClick(ev) {
+        const arch = this.archSel();
+        if (!arch) return;
+        const r0 = this.sky.getBoundingClientRect();
+        const cx = r0.width / 2, cy = r0.height / 2;
+        const R = Math.min(r0.width, r0.height) / 2 - 16;
+        const dx = (ev.clientX - r0.left - cx) / R;
+        const dy = (cy - (ev.clientY - r0.top)) / R;
+        const rr = Math.hypot(dx, dy);
+        if (rr > 1.0) return;
+        let az = Math.atan2(dx, dy) / D2R;
+        if (az < 0.0) az += 360.0;
+        const el = (1.0 - rr) * 90.0;
+        this.app.ws.send({cmd: 'array_beam', rfch: arch, az: az, el: el});
+        const beam = this.arrayStat.beams.find(b => b.ch == arch);
+        if (beam) {
+            beam.az = az;
+            beam.el = el;
+        }
+        this.draw();
     }
     set(id, txt, warn) {
         const e = this.el.querySelector('#rcv-' + id);
@@ -175,6 +222,10 @@ export class RcvPage {
         ctx.fillStyle = BG;
         ctx.fillRect(0, 0, w, h);
         const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 16;
+        const arch = this.archSel();
+        if (arch && this.el.querySelector('#rcv-gain').checked) {
+            this.drawGainOverlay(ctx, cx, cy, R, arch);
+        }
         ctx.strokeStyle = GR;
         ctx.lineWidth = 1;
         for (const el of [0, 30, 60]) {
@@ -213,6 +264,90 @@ export class RcvPage {
             ctx.fillStyle = si.pvt ? BG : FG;
             ctx.fillText(sat, x, y);
         }
+        if (arch) this.drawBeamMark(ctx, cx, cy, R, arch);
+    }
+    // overlay array gain heatmap (jet, -30 to +20 dB) --------------------------
+    drawGainOverlay(ctx, cx, cy, R, arch) {
+        const as = this.arrayStat;
+        const beam = as.beams.find(b => b.ch == arch);
+        if (!beam || !as.ant_pos) return;
+        const [r, p, y] = as.rpy.map(v => v * D2R);
+        const cr = Math.cos(r), sr = Math.sin(r);
+        const cp = Math.cos(p), sp = Math.sin(p);
+        const cy_ = Math.cos(y), sy = Math.sin(y);
+        const Rm = [ // body-to-ENU rotation R = Rz(yaw) Ry(pitch) Rx(roll)
+            [cy_*cp, cy_*sp*sr - sy*cr, cy_*sp*cr + sy*sr],
+            [sy*cp,  sy*sp*sr + cy_*cr, sy*sp*cr - cy_*sr],
+            [-sp,    cp*sr,             cp*cr]];
+        const pos = [];
+        as.ant_pos.forEach((q, i) => {
+            if (!as.ant_ena[i]) return;
+            pos.push([0, 1, 2].map(
+                k => Rm[k][0]*q[0] + Rm[k][1]*q[1] + Rm[k][2]*q[2]));
+        });
+        if (pos.length < 1) return;
+        const k = 2.0 * Math.PI / (299792458.0 / 1.57542e9);
+        const azb = beam.az * D2R, elb = beam.el * D2R;
+        const eb = [Math.sin(azb) * Math.cos(elb),
+            Math.cos(azb) * Math.cos(elb), Math.sin(elb)];
+        const projb = pos.map(q => eb[0]*q[0] + eb[1]*q[1] + eb[2]*q[2]);
+        const M = 80;
+        const img = new ImageData(M, M);
+        for (let j = 0; j < M; j++) {
+            const Y = 1.0 - 2.0 * j / (M - 1); // north
+            for (let i = 0; i < M; i++) {
+                const X = -1.0 + 2.0 * i / (M - 1); // east
+                const R2 = X * X + Y * Y;
+                if (R2 > 1.0) continue; // transparent outside
+                const az = Math.atan2(X, Y);
+                const el = Math.max(0.0, (1.0 - Math.sqrt(R2)) * Math.PI / 2);
+                const ce = Math.cos(el);
+                const e = [Math.sin(az) * ce, Math.cos(az) * ce, Math.sin(el)];
+                let re = 0.0, im = 0.0;
+                for (let a = 0; a < pos.length; a++) {
+                    const ph = k * (e[0]*pos[a][0] + e[1]*pos[a][1] +
+                        e[2]*pos[a][2] - projb[a]);
+                    re += Math.cos(ph);
+                    im += Math.sin(ph);
+                }
+                const gain = 20.0 * Math.log10(Math.hypot(re, im) + 1e-30);
+                const [r_, g_, b_] = jetColor((gain + 30.0) / 50.0);
+                const o = (j * M + i) * 4;
+                img.data[o] = r_;
+                img.data[o+1] = g_;
+                img.data[o+2] = b_;
+                img.data[o+3] = 200;
+            }
+        }
+        if (!this.ovl) this.ovl = document.createElement('canvas');
+        this.ovl.width = this.ovl.height = M;
+        this.ovl.getContext('2d').putImageData(img, 0, 0);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+        ctx.clip();
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(this.ovl, cx - R, cy - R, 2 * R, 2 * R);
+        ctx.restore();
+    }
+    // beam direction X mark ----------------------------------------------------
+    drawBeamMark(ctx, cx, cy, R, arch) {
+        const beam = this.arrayStat.beams.find(b => b.ch == arch);
+        if (!beam || beam.el < 0.0 || beam.el > 90.0) return;
+        const rr = R * (90.0 - beam.el) / 90.0;
+        const x = cx + rr * Math.sin(beam.az * D2R);
+        const y = cy - rr * Math.cos(beam.az * D2R);
+        for (const [color, width] of [['#FFFFFF', 6], ['red', 2]]) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(x - 8, y - 8);
+            ctx.lineTo(x + 8, y + 8);
+            ctx.moveTo(x + 8, y - 8);
+            ctx.lineTo(x - 8, y + 8);
+            ctx.stroke();
+        }
+        ctx.lineWidth = 1;
     }
     drawCn0() {
         const p = this.cn0Plot;
@@ -270,11 +405,13 @@ export class RcvPage {
         this.satsKey = '';
         this.resub();
         this.app.ws.sub('pvt_sol', {cyc: 200});
+        this.app.ws.sub('array_stat', {cyc: 500});
     }
     hide() {
         this.active = false;
         this.app.ws.unsub('ch_stat');
         this.app.ws.unsub('sat_stat');
         this.app.ws.unsub('pvt_sol');
+        this.app.ws.unsub('array_stat');
     }
 }

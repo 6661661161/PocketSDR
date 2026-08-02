@@ -1,0 +1,119 @@
+// Pocket SDR Web UI - Array page
+
+const MODES = ['Both', 'Delay', 'Att'];
+
+export class ArrayPage {
+    constructor(app) {
+        this.app = app;
+        this.stat = null;
+        this.el = document.createElement('div');
+        this.el.innerHTML =
+            `<div class="toolbar">` +
+            `<span class="mono" id="ar-stat">CALIB: ---</span>` +
+            `<span class="space"></span>` +
+            `<label>Calibration</label><select id="ar-mode">` +
+            MODES.map(m => `<option>${m}</option>`).join('') + `</select>` +
+            `<button id="ar-run">Start</button>` +
+            `<button id="ar-clear">Clear</button>` +
+            `<button id="ar-load">Load</button>` +
+            `<button id="ar-save">Save</button>` +
+            `</div>` +
+            `<div class="ar-body" id="ar-body">` +
+            `<div class="ar-frame"><div class="ar-title">RF CH DELAY</div>` +
+            `<div class="mono" id="ar-bias">---</div></div>` +
+            `<div class="ar-frame"><div class="ar-title">ARRAY ATTITUDE` +
+            `</div><div class="mono" id="ar-att">---</div></div>` +
+            `<div class="ar-frame"><div class="ar-title">` +
+            `ARRAY CH BEAM DIRECTION</div><div id="ar-beams"></div></div>` +
+            `</div>` +
+            `<div class="ar-none" id="ar-none">No array channels ` +
+            `(start pocket_trk with -ARCH option).</div>`;
+        this.el.querySelector('#ar-mode').onchange = () => {
+            this.app.ws.send({cmd: 'array_mode',
+                mode: MODES.indexOf(this.el.querySelector('#ar-mode').value)});
+        };
+        this.el.querySelector('#ar-run').onclick = () => {
+            const run = this.stat && this.stat.run ? 0 : 1;
+            this.app.ws.send({cmd: 'array_run', run: run});
+        };
+        this.el.querySelector('#ar-clear').onclick = () => {
+            this.app.ws.send({cmd: 'array_run', run: 2});
+        };
+        this.el.querySelector('#ar-load').onclick = () => {
+            this.app.ws.send({cmd: 'array_load'});
+        };
+        this.el.querySelector('#ar-save').onclick = () => {
+            this.app.ws.send({cmd: 'array_save'});
+        };
+        app.ws.on('array_stat', (msg) => this.update(msg));
+        app.ws.on('ack', (msg) => { // refresh promptly after a command
+            if (this.active && msg.cmd && msg.cmd.startsWith('array_')) {
+                this.app.ws.get('array_stat');
+            }
+        });
+    }
+    update(msg) {
+        if (!this.active) return;
+        this.stat = msg;
+        const none = msg.narch <= 0;
+        this.el.querySelector('#ar-body').style.display = none ? 'none' : '';
+        this.el.querySelector('#ar-none').style.display = none ? '' : 'none';
+        if (none) {
+            this.el.querySelector('#ar-stat').textContent = 'CALIB: ---';
+            return;
+        }
+        const stat = this.el.querySelector('#ar-stat');
+        stat.textContent = `CALIB: ${msg.run ? 'RUN' : 'STOP'}  ` +
+            `EPOCHS: ${msg.nep}  RMS: ${msg.rms.toFixed(4)} m`;
+        stat.classList.toggle('warn-txt', !!msg.run);
+        this.el.querySelector('#ar-run').textContent =
+            msg.run ? 'Stop' : 'Start';
+        const sel = this.el.querySelector('#ar-mode');
+        if (document.activeElement != sel) sel.value = MODES[msg.mode] ||
+            'Both';
+        this.el.querySelector('#ar-bias').innerHTML = msg.bias.map(
+            (b, i) => `CH${i+1}: ${b.toFixed(4)} m`).join('&nbsp;&nbsp; ');
+        this.el.querySelector('#ar-att').textContent =
+            `ROLL: ${msg.rpy[0].toFixed(3)}°  ` +
+            `PITCH: ${msg.rpy[1].toFixed(3)}°  ` +
+            `YAW: ${msg.rpy[2].toFixed(3)}°`;
+        const beams = this.el.querySelector('#ar-beams');
+        if (beams.children.length != msg.beams.length) {
+            beams.innerHTML = msg.beams.map(b =>
+                `<div class="ar-beam" data-ch="${b.ch}">` +
+                `<span class="mono">CH${b.ch}</span>` +
+                `<label>AZ</label><input type="number" class="az" ` +
+                `min="0" max="360" step="1">` + `<label>°</label>` +
+                `<label>EL</label><input type="number" class="el" ` +
+                `min="0" max="90" step="1">` + `<label>°</label>` +
+                `<button>Update</button></div>`).join('');
+            for (const row of beams.children) {
+                row.querySelector('button').onclick = () => {
+                    this.app.ws.send({cmd: 'array_beam',
+                        rfch: parseInt(row.dataset.ch),
+                        az: parseFloat(row.querySelector('.az').value) || 0,
+                        el: parseFloat(row.querySelector('.el').value) || 0});
+                };
+            }
+        }
+        msg.beams.forEach((b, i) => {
+            const row = beams.children[i];
+            const az = row.querySelector('.az'), el = row.querySelector('.el');
+            if (document.activeElement != az && document.activeElement != el) {
+                az.value = b.az.toFixed(1);
+                el.value = b.el.toFixed(1);
+            }
+        });
+        for (const e of this.el.querySelectorAll('#ar-bias, #ar-att')) {
+            e.classList.toggle('warn-txt', !!msg.run);
+        }
+    }
+    show() {
+        this.active = true;
+        this.app.ws.sub('array_stat', {cyc: 500});
+    }
+    hide() {
+        this.active = false;
+        this.app.ws.unsub('array_stat');
+    }
+}

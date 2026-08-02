@@ -181,7 +181,9 @@ they are already the de-facto GUI API).
 | `rfch_stat` | `sdr_rcv_rfch_stat()` all RF+array CHs       | JSON     | 200 ms      |
 | `hist`      | `sdr_rcv_rfch_hist()`                        | JSON     | 200 ms      |
 | `log`       | `sdr_get_log()` (server-side fan-out)        | JSON     | 200 ms      |
-| `psd`       | `sdr_rcv_rfch_psd()`                         | binary 1 | 100 ms      |
+| `array_stat`| `sdr_rcv_array_stat()` + beams + ant_pos     | JSON     | 500 ms      |
+| `opts`      | current `sdr_rcv_setopt()` option values     | JSON     | 200 ms      |
+| `psd`       | `sdr_rcv_rfch_psd()` (rfch 0: all RF CHs)    | binary 1 | 100 ms      |
 | `corr`      | `sdr_rcv_corr_stat()`                        | binary 2 | 100 ms      |
 | `corr_hist` | `sdr_rcv_corr_hist()`                        | binary 3 | 100 ms      |
 
@@ -209,11 +211,15 @@ Notes:
 | `set_filt` | `rfch`, `bw`, `freq`, `order` | `sdr_rcv_set_filt()` |
 | `get_filt` | `rfch`                 | `sdr_rcv_get_filt()`       |
 | `setopt`   | `name`, `value`        | `sdr_rcv_setopt()`         |
-| `log_level`| `level`                | `sdr_log_level()`          |
+| `log_level`| `value`                | `sdr_log_level()`          |
+| `array_run`| `run` (1:start, 0:stop, 2:clear) | `sdr_rcv_array_run()` |
+| `array_mode`| `mode` (0:both, 1:bias, 2:rpy) | `sdr_rcv_array_set_mode()` |
+| `array_beam`| `rfch`, `az`, `el` (deg) | `sdr_rcv_array_set_beam()` |
+| `array_save`| `file` (default array_calib.txt) | `sdr_rcv_array_save()` |
+| `array_load`| `file` (default array_calib.txt) | `sdr_rcv_array_load()` |
 
 Every command is answered with an `ack` JSON message. `setopt` accepts only
-the key names already handled by `sdr_rcv_setopt()`. Array control commands
-(`sdr_rcv_array_*`) follow in a later phase with the Array page.
+the key names already handled by `sdr_rcv_setopt()`.
 
 ### Correlator-channel selection policy
 

@@ -7,6 +7,8 @@ import {BbchPage} from './pages/bbch.js';
 import {CorrPage} from './pages/corr.js';
 import {SatsPage} from './pages/sats.js';
 import {SolPage} from './pages/sol.js';
+import {ArrayPage} from './pages/array.js';
+import {OptsPage} from './pages/opts.js';
 import {LogPage} from './pages/log.js';
 
 const ws = new WsClient();
@@ -27,6 +29,8 @@ const pages = [
     {name: 'Correlator', page: new CorrPage(app)},
     {name: 'Satellites', page: new SatsPage(app)},
     {name: 'Solution', page: new SolPage(app)},
+    {name: 'Array', page: new ArrayPage(app)},
+    {name: 'Options', page: new OptsPage(app)},
     {name: 'Log', page: new LogPage(app)}
 ];
 let cur = -1;
@@ -98,6 +102,6 @@ ws.on('open', () => {
     ws.sub('rcv_stat', {cyc: 200});
 });
 ws.connect();
-const hash = ['receiver', 'rfch', 'bbch', 'corr', 'sats', 'sol', 'log']
-    .indexOf(location.hash.slice(1));
+const hash = ['receiver', 'rfch', 'bbch', 'corr', 'sats', 'sol', 'array',
+    'opts', 'log'].indexOf(location.hash.slice(1));
 selPage(hash < 0 ? 0 : hash);

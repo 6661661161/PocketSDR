@@ -8,8 +8,8 @@
     --p2: #888844;
     --p3: #BBBBBB;
     --warn: #FF4000;
-    --font: 12px Tahoma, "DejaVu Sans", sans-serif;
-    --mono: 12px Consolas, "DejaVu Sans Mono", monospace;
+    --font: 14px Tahoma, "DejaVu Sans", sans-serif;
+    --mono: 14px Consolas, "DejaVu Sans Mono", monospace;
 }
 * {
     box-sizing: border-box;
@@ -22,6 +22,7 @@ html, body {
 body {
     font: var(--font);
     color: #222;
+    padding: 8px 8px;
     background: var(--bg1);
 }
 #app {
@@ -34,7 +35,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 10px;
+    padding: 6px 6px;
     background: var(--bg1);
     border-bottom: 1px solid var(--gr);
 }
@@ -57,8 +58,8 @@ body {
     border-bottom: 1px solid #CCC;
 }
 #tabbar .tab {
-    padding: 4px 20px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 14px;
     cursor: pointer;
     border: 1px solid transparent;
     border-bottom: none;
@@ -91,8 +92,8 @@ body {
 #statusbar {
     display: flex;
     justify-content: space-between;
-    padding: 2px 10px;
-    height: 20px;
+    padding: 6px 6px;
+    height: 24px;
     background: white;
     border-top: 1px solid var(--gr);
     color: darkblue;
@@ -109,8 +110,8 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 28px;
-    padding: 0 8px;
+    height: 24px;
+    padding: 0 6px;
     background: var(--bg1);
     border-bottom: 1px solid var(--gr);
     white-space: nowrap;
@@ -149,7 +150,7 @@ body {
 .led {
     display: inline-block;
     width: 10px;
-    height: 6px;
+    height: 10px;
     margin-left: 2px;
     border: 1px solid lightgrey;
     background: var(--bg1);
@@ -170,25 +171,25 @@ body {
 }
 .rcv-body2 {
     overflow: auto;
-    padding: 10px 16px;
+    padding: 10px 10px;
 }
 .rcv-sky {
-    border-left: 1px solid var(--gr);
+    border-left: 2px solid var(--gr);
 }
 .rcv-cn0 {
-    border-top: 1px solid var(--gr);
+    border-top: 2px solid var(--gr);
 }
 .rcv-body {
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 14px 18px;
+    padding: 10px 10px;
 }
 .rcv-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     column-gap: 40px;
-    row-gap: 2px;
+    row-gap: 1px;
     max-width: 1000px;
 }
 .rcv-col {
@@ -232,14 +233,14 @@ table.chtbl th {
     top: 0;
     background: var(--bg1);
     border-bottom: 1px solid #CCC;
-    padding: 2px 6px;
+    padding: 1px 2px;
     text-align: right;
     font-weight: normal;
     color: #333;
     white-space: nowrap;
 }
 table.chtbl td {
-    padding: 1px 6px;
+    padding: 0px 2px;
     text-align: right;
     color: var(--p1);
     white-space: nowrap;
@@ -262,7 +263,7 @@ table.chtbl tr.srch td {
 }
 .cn0bar {
     display: inline-block;
-    height: 8px;
+    height: 10px;
     background: var(--p1);
     vertical-align: middle;
 }
@@ -333,6 +334,87 @@ table.chtbl tr.unhealthy td {
 }
 .sol-hori .plotbox {
     flex: 1;
+}
+
+/* Array page */
+.ar-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+}
+.ar-frame {
+    border: 1px solid #CCC;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+}
+.ar-title {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 6px;
+}
+.ar-frame .mono {
+    font: var(--mono);
+    color: var(--p1);
+}
+.ar-beam {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+}
+.ar-beam input {
+    font: var(--font);
+    width: 70px;
+    border: 1px solid #BBB;
+    padding: 1px 2px;
+}
+.ar-beam button {
+    font: var(--font);
+    background: var(--bg1);
+    border: 1px solid #AAA;
+    padding: 1px 8px;
+    cursor: pointer;
+}
+.ar-none {
+    padding: 20px;
+    color: var(--p2);
+}
+
+/* Options page */
+.op-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+}
+table.optbl {
+    border-collapse: collapse;
+}
+table.optbl td {
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+table.optbl td.lbl {
+    font-weight: bold;
+    color: #333;
+}
+table.optbl td.note {
+    color: var(--p2);
+}
+table.optbl input {
+    font: var(--mono);
+    width: 100px;
+    text-align: right;
+    border: 1px solid #BBB;
+    padding: 1px 2px;
+}
+table.optbl button {
+    font: var(--font);
+    background: var(--bg1);
+    border: 1px solid #AAA;
+    padding: 1px 8px;
+    cursor: pointer;
 }
 
 /* Correlator page */
