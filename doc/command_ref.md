@@ -306,7 +306,7 @@ pocket_trk [-sig sig -prn prn[,...] [-rfch ch[,...]] ...]
            [-p bus[,port]] [-c conf_file]
            [-driver name] [-gain gain] [-bw bw] [-fd dopp]
            [-log path] [-nmea path] [-rtcm path] [-raw path] ...
-           [-web [addr:]port] [-html dir]
+           [-arch nch] [-geom file] [-web [addr:]port] [-html dir]
            [-h height] [-opt file] [-debug file] [-v] [file]
 ```
 
@@ -362,6 +362,13 @@ The input can be a local file, a TCP stream, a Pocket SDR FE device, or a SoapyS
   - Output stream path for raw observations and navigation data as RTCM3.3 messages. Same path syntax and repeatability as `-log`.
 - `-raw path`
   - Output stream path for raw IF data. Same path syntax and repeatability as `-log`. Enabled only for Pocket SDR FE or SoapySDR device inputs.
+- `-arch nch`
+  - Number of antenna array channels. Array CHs are appended after the RF
+    CHs and can be monitored and beam-steered from the Web UI Array page.
+    [`0`]
+- `-geom file`
+  - Array element positions file (body-frame, `pocket_sdr.py` array
+    geometry format) applied at startup. [none]
 - `-web [addr:]port`
   - Enable the Web UI server on the given TCP port. Static Web UI files are
     served over HTTP, and commands and monitor data are exchanged over

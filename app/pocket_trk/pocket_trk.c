@@ -27,6 +27,7 @@
 //  2026-07-24  1.11 support up to 8 output streams by repeating -nmea, -rtcm,
 //                   -log and -raw options
 //  2026-08-01  1.12 add -web and -html options for Web UI
+//  2026-08-02  1.13 add -arch and -geom options for antenna array
 //
 #include <math.h>
 #include <signal.h>
@@ -54,7 +55,7 @@ static const char *usage_text[] = {
     "       [-toff toff] [-ti tint] [-p bus,[,port] [-c conf_file]",
     "       [-driver name] [-gain gain] [-bw bw] [-fd dopp]",
     "       [-log path] [-nmea path] [-rtcm path] [-raw path] ... [-opt file]",
-    "       [-web [addr:]port] [-html dir] [file]",
+    "       [-arch nch] [-geom file] [-web [addr:]port] [-html dir] [file]",
     NULL
 };
 
@@ -197,7 +198,7 @@ int main(int argc, char **argv)
     sdr_web_t *web = NULL;
     char web_addr[64] = "";
     int web_port = 0;
-    const char *html_dir = "";
+    const char *html_dir = "", *geom_file = "";
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-sig") && i + 1 < argc) {
@@ -271,6 +272,12 @@ int main(int argc, char **argv)
             bw = atof(argv[++i]);
         } else if (!strcmp(argv[i], "-fd") && i + 1 < argc) {
             max_dop = atof(argv[++i]);
+        } else if (!strcmp(argv[i], "-arch") && i + 1 < argc) {
+            size_t len = strlen(rfch_opt);
+            snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -ARCH=%d",
+                atoi(argv[++i]));
+        } else if (!strcmp(argv[i], "-geom") && i + 1 < argc) {
+            geom_file = argv[++i];
         } else if (!strcmp(argv[i], "-web") && i + 1 < argc) {
             const char *str = argv[++i], *p = strrchr(str, ':');
             if (p) {
@@ -329,6 +336,15 @@ int main(int argc, char **argv)
     }
     if (!rcv) {
         return -1;
+    }
+    if (*geom_file) { // array element positions
+        double ant_pos[SDR_MAX_RFCH*3] = {0};
+        int ant_ena[SDR_MAX_RFCH] = {0};
+        int nant = sdr_array_geom_load(geom_file, ant_pos, SDR_MAX_RFCH);
+        for (int i = 0; i < nant; i++) ant_ena[i] = 1;
+        if (nant <= 0 || !sdr_rcv_array_ant_pos(rcv, ant_pos, ant_ena)) {
+            fprintf(stderr, "array geometry load error: %s\n", geom_file);
+        }
     }
     if (web_port > 0) {
         if ((web = sdr_web_start(rcv, web_addr, web_port, html_dir))) {
