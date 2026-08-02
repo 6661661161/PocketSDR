@@ -24,6 +24,14 @@ const app = {
     selectCorrCh: (ch) => {} // set after pages are built
 };
 
+// update shared info first, before any page hello handler runs ----------------
+ws.on('hello', (msg) => {
+    Object.assign(app.info, msg);
+    document.getElementById('title').textContent = msg.name;
+    document.getElementById('btn-start').disabled = !msg.cfg_ena || msg.run;
+    document.getElementById('btn-stop').disabled = !msg.cfg_ena || !msg.run;
+});
+
 // pages -----------------------------------------------------------------------
 const pages = [
     {name: 'Receiver', page: new RcvPage(app)},
@@ -33,9 +41,9 @@ const pages = [
     {name: 'Satellites', page: new SatsPage(app)},
     {name: 'Solution', page: new SolPage(app)},
     {name: 'Array', page: new ArrayPage(app)},
-    {name: 'Input', page: new InpPage(app)},
-    {name: 'Output', page: new OutPage(app)},
-    {name: 'Signal', page: new SigPage(app)},
+    {name: 'Input', page: new InpPage(app), notab: true},
+    {name: 'Output', page: new OutPage(app), notab: true},
+    {name: 'Signal', page: new SigPage(app), notab: true},
     {name: 'System', page: new OptsPage(app), notab: true},
     {name: 'Log', page: new LogPage(app)}
 ];
@@ -87,12 +95,6 @@ ws.on('close', () => {
     conn.textContent = 'OFFLINE';
     conn.className = 'conn-off';
     app.msg('Connection lost. Reconnecting...');
-});
-ws.on('hello', (msg) => {
-    Object.assign(app.info, msg);
-    document.getElementById('title').textContent = msg.name;
-    document.getElementById('btn-start').disabled = !msg.cfg_ena || msg.run;
-    document.getElementById('btn-stop').disabled = !msg.cfg_ena || !msg.run;
 });
 ws.on('rcv_stat', (msg) => {
     const f = msg.str.split(/\s+/);

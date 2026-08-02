@@ -57,7 +57,8 @@ body {
     font-weight: bold;
     background: var(--bg1);
     border: 1px solid #AAA;
-    padding: 1px 14px;
+    width: 90px;
+    padding: 1px 0;
     cursor: pointer;
 }
 #btnbar button:hover {
@@ -459,31 +460,32 @@ table.optbl button {
 .cfg-row {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     padding: 2px 2px;
 }
 .cfg-row label {
-    width: 40px;
+    width: 160px;
     font-weight: bold;
     color: #333;
 }
 .cfg-body input[type=text], .cfg-body input[type=number],
 .cfg-body select {
     font: var(--font);
-    width: 60px;
     border: 1px solid #CCC;
     padding: 1px 3px;
 }
+.cfg-body input[type=number] {
+    width: 90px;
+}
 .cfg-body input.wide {
-    width: min(360px, 60vw);
+    width: min(480px, 60vw);
 }
 table.cfg-tbl {
-    width: 120px;
     border-collapse: collapse;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 table.cfg-tbl th, table.cfg-tbl td {
-    padding: 1px 10px;
+    padding: 1px 4px;
     text-align: left;
     color: #333;
     white-space: nowrap;
@@ -494,17 +496,22 @@ table.cfg-tbl th {
 }
 .sig-sec {
     border: 1px solid #CCC;
-    padding: 1px 10px;
+    padding: 2px 8px;
     margin-bottom: 2px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
 }
 .sig-sec .sig-head {
     font-weight: bold;
     color: #333;
-    width: 80px;
+    width: 56px;
+}
+.sig-sec .sig-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 74px);
+    row-gap: 1px;
 }
 .sig-sec .sig-chk {
     white-space: nowrap;

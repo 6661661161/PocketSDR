@@ -251,18 +251,26 @@ export class RfchPage {
         }
     }
     drawBand() {
-        for (const p of this.bandPlot) {
+        this.bandPlot.forEach((p, pi) => {
+            const band = (c) => { // channel band (MHz)
+                const fo = c.fo * 1e-6, fs = c.fs * 1e-6;
+                return [c.IQ == 1 ? fo : fo - fs / 2, fo + fs / 2];
+            };
+            const chs = this.chs.filter(c => { // channels in this panel
+                const [lo, hi] = band(c);
+                return hi >= p.xlim[0] && lo <= p.xlim[1];
+            });
+            const nch = Math.max(chs.length, 1);
+            p.ylim = [0, nch];
             p.begin();
             const ctx = p.ctx;
-            for (const c of this.chs) {
-                const fo = c.fo * 1e-6, fs = c.fs * 1e-6;
-                const lo = c.IQ == 1 ? fo : fo - fs / 2;
-                const hi = c.IQ == 1 ? fo + fs / 2 : fo + fs / 2;
-                if (hi < p.xlim[0] || lo > p.xlim[1]) continue;
-                const y = 8.5 - c.ch;
+            chs.forEach((c, idx) => {
+                const fo = c.fo * 1e-6;
+                const [lo, hi] = band(c);
+                const y = nch - 1 - idx;
                 const x0 = p.xp(Math.max(lo, p.xlim[0]));
                 const x1 = p.xp(Math.min(hi, p.xlim[1]));
-                const py0 = p.yp(y + 0.32), py1 = p.yp(y - 0.32);
+                const py0 = p.yp(y + 0.95), py1 = p.yp(y + 0.05);
                 ctx.fillStyle = '#EDF2EE';
                 ctx.fillRect(x0, py0, x1 - x0, py1 - py0);
                 ctx.strokeStyle = P2;
@@ -277,17 +285,29 @@ export class RfchPage {
                 }
                 p.textPx(x0 + 4, (py0 + py1) / 2, 'CH' + c.ch, P1, 'left',
                     'middle', plotTitleFont());
+                let k = 0;
                 for (const s of this.sigs[c.ch] || []) {
                     const f = SIG_FREQ[s.sig];
                     if (!f || f < lo || f > hi) continue;
-                    p.mark(f, y + 0.42, 7, SYS_COLOR[s.sys] || FG);
-                    p.textPx(p.xp(f) + 5, p.yp(y + 0.48), s.sig,
+                    const ys = y + 0.80 - (k++) * 0.18;
+                    p.mark(f, ys, 7, SYS_COLOR[s.sys] || FG);
+                    p.textPx(p.xp(f) + 5, p.yp(ys), s.sig,
                         SYS_COLOR[s.sys] || FG, 'left', 'middle',
                         plotFont());
                 }
-            }
+            });
             p.end();
-        }
+            if (pi == 0) { // system color legend
+                const present = [...new Set([].concat(
+                    ...Object.values(this.sigs)).map(e => e.sys))];
+                let px = p.ax[2] - 8;
+                for (const s of present.reverse()) {
+                    p.textPx(px, p.ax[1] + 12, s, SYS_COLOR[s] || FG,
+                        'right');
+                    px -= 12;
+                }
+            }
+        });
     }
     show() {
         this.active = true;

@@ -28,6 +28,7 @@ const ROWS_R = [
     ['lat', 'Latitude (°)'],
     ['lon', 'Longitude (°)'],
     ['hgt', 'Altitude (m)'],
+    ['rpy', 'Roll/Pitch/Yaw (°)'],
     ['nsat', '# Sats Used/All'],
     ['latency', 'Solution Latency (s)'],
     ['!', 'Output'],
@@ -72,16 +73,16 @@ export class RcvPage {
             `<span class="val" id="rcv-${id}">---</span></div>`).join('');
         this.el.innerHTML =
             `<div class="toolbar">` +
+            `<label>Output</label><span id="rcv-leds">` +
+            '<span class="led"></span>'.repeat(8) + `</span>` +
+            `<span class="space"></span>` +
+            `<label id="rcv-gain-l" style="display:none">` +
+            `<input type="checkbox" id="rcv-gain" checked> Gain</label>` +
             `<label>RF CH</label><select id="rcv-rf"><option>ALL</option>` +
             [...Array(16)].map((_, i) => `<option>${i+1}</option>`).join('') +
             `</select>` +
             `<label>System</label><select id="rcv-sys">` +
             SYSTEMS.map(s => `<option>${s}</option>`).join('') + `</select>` +
-            `<label id="rcv-gain-l" style="display:none">` +
-            `<input type="checkbox" id="rcv-gain" checked> Gain</label>` +
-            `<span class="space"></span>` +
-            `<label>Output</label><span id="rcv-leds">` +
-            '<span class="led"></span>'.repeat(8) + `</span>` +
             `</div>` +
             `<div class="rcv-main">` +
             `<div class="rcv-top">` +
@@ -110,6 +111,8 @@ export class RcvPage {
             this.arrayStat = msg.narch > 0 ? msg : null;
             this.el.querySelector('#rcv-gain-l').style.display =
                 msg.narch > 0 ? '' : 'none';
+            this.set('rpy', msg.narch > 0 ?
+                msg.rpy.map(v => v.toFixed(3)).join(' / ') : '---');
             this.draw();
         });
         app.ws.on('opts', (msg) => {
@@ -378,23 +381,26 @@ export class RcvPage {
             const color = (si.pvt ? SYS_COLOR : SYS_COLOR2)[satSys(sat)] ||
                 FG;
             if (si.pvt) nuse++;
-            // stack signal bars, highest C/N0 first, black edges
-            const sigs = [...this.sigStat[sat]].sort((a, b) => b.cn0 - a.cn0);
-            for (const s of sigs) {
-                const px = p.xp(i), py0 = p.yp(20), py1 = p.yp(s.cn0);
-                if (py0 - py1 < 1.0) continue;
+            // ALL: bars stacked (highest C/N0 first), else: side by side
+            const sigs = sys == 'ALL' ?
+                [...this.sigStat[sat]].sort((a, b) => b.cn0 - a.cn0) :
+                this.sigStat[sat];
+            sigs.forEach((s, j) => {
+                const off = sys == 'ALL' ? 0 : (j - (sigs.length - 1) / 2) * 7;
+                const px = p.xp(i) + off, py0 = p.yp(20), py1 = p.yp(s.cn0);
+                if (py0 - py1 < 1.0) return;
                 ctx.fillStyle = color;
                 ctx.fillRect(px - 2.5, py1, 5, py0 - py1);
                 ctx.strokeStyle = FG;
                 ctx.lineWidth = 0.6;
                 ctx.strokeRect(px - 2.5, py1, 5, py0 - py1);
-            }
+            });
         });
         p.end();
         sats.forEach((sat, i) => {
             p.textPx(p.xp(i), p.ax[3] + 4,
-                sys == 'ALL' ? sat.replace(/^[A-Z]/, '') : sat, FG,
-                'center', 'top');
+                sys == 'ALL' ? sat.replace(/^[A-Z]/, '') : sat,
+                SYS_COLOR[satSys(sat)] || FG, 'center', 'top');
         });
         p.textPx(p.ax[0] + 10, p.ax[1] + 16,
             '#Sats: ' + nuse + '/' + sats.length, FG, 'left');

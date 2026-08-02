@@ -36,10 +36,11 @@ export class SigPage {
                 `<span class="sig-head">${sys}</span>` +
                 `<label>PRN</label>` +
                 `<input type="text" class="sg-prn" size="12">` +
+                `<span class="sig-grid">` +
                 SYS_SIGS[sys].map(sig =>
                     `<label class="sig-chk"><input type="checkbox" ` +
                     `class="sg-sig" data-sig="${sig}"> ${sig}</label>`
-                ).join('') + `</div>`).join('') +
+                ).join('') + `</span></div>`).join('') +
             `<div class="cfg-row"><label>Receiver Options</label>` +
             `<input type="text" id="sg-opt" class="wide"></div>` +
             `<div class="cfg-note">Receiver Options: -RFCH sig:ch[,ch...] ` +
