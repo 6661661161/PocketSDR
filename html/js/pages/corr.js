@@ -167,7 +167,7 @@ export class CorrPage {
             }
             if (m.n > m.npos) { // additional correlators
                 p.line(x.slice(m.npos), y.slice(m.npos), P2);
-                p.dots(x.slice(m.npos), y.slice(m.npos), 3, P1);
+                p.dots(x.slice(m.npos), y.slice(m.npos), 2.5, P1);
             }
             p.dots(x.slice(0, m.npos), y.slice(0, m.npos), 9, P1);
         }
@@ -193,7 +193,7 @@ export class CorrPage {
         if (h) {
             p.ctx.fillStyle = P2;
             for (let i = 0; i < h.n; i++) {
-                p.ctx.fillRect(p.xp(h.P[i*2]) - 1, p.yp(h.P[i*2+1]) - 1, 2, 2);
+                p.ctx.fillRect(p.xp(h.P[i*2]) - 0.75, p.yp(h.P[i*2+1]) - 0.75, 1.5, 1.5);
             }
         }
         if (m) {

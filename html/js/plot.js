@@ -40,7 +40,7 @@ function tickStep(span, maxTicks) {
     const raw = span / Math.max(2, maxTicks);
     const mag = Math.pow(10, Math.floor(Math.log10(raw)));
     for (const m of [1, 2, 5, 10]) {
-        if (raw <= m * mag * 1.5001) return m * mag;
+        if (raw <= m * mag * 1.5) return m * mag;
     }
     return 10 * mag;
 }
