@@ -1,6 +1,7 @@
 // Pocket SDR Web UI - Receiver page
 
-import {Plot, BG, FG, GR, SYS_COLOR, SYS_COLOR2} from '../plot.js';
+import {Plot, BG, FG, GR, SYS_COLOR, SYS_COLOR2, cssVar, plotFont}
+    from '../plot.js';
 
 const D2R = Math.PI / 180;
 const LED_COLORS = ['#CC0000', '#F8F8F8', '#EE9900', '#006600', '#00CC00'];
@@ -250,7 +251,7 @@ export class RcvPage {
                 cy - R * Math.cos(az * D2R));
             ctx.stroke();
         }
-        ctx.font = '11px Tahoma, sans-serif';
+        ctx.font = plotFont();
         ctx.fillStyle = FG;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -258,7 +259,8 @@ export class RcvPage {
         ctx.fillText('E', cx + R + 8, cy);
         ctx.fillText('S', cx, cy + R + 8);
         ctx.fillText('W', cx - R - 8, cy);
-        ctx.font = '9px Tahoma, sans-serif';
+        const satR = parseFloat(cssVar('--sky-sat-size', '10')) || 10;
+        ctx.font = cssVar('--sky-sat-font', '9px Tahoma, sans-serif');
         for (const sat of this.sats) {
             const si = this.satInfo[sat] || {az: 0, el: 0, pvt: 0};
             if (si.el <= 0.0) continue; // suppress invalid satellites
@@ -268,7 +270,7 @@ export class RcvPage {
             const color = SYS_COLOR[satSys(sat)] || FG;
             const low = si.el < this.elMask;
             ctx.beginPath();
-            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            ctx.arc(x, y, satR, 0, 2 * Math.PI);
             if (!low) { // low elevation: black edge, no fill
                 ctx.fillStyle = si.pvt ? color : BG;
                 ctx.fill();

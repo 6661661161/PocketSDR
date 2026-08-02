@@ -7,8 +7,22 @@ export const P1 = '#003020';        // primary plot color
 export const P2 = '#888844';        // secondary plot color
 export const P3 = '#BBBBBB';        // reference line color
 export const WARN = '#FF4000';      // warning color
-export const FONT = '11px Tahoma, "DejaVu Sans", sans-serif';
-export const FONT_B = 'bold 12px Tahoma, "DejaVu Sans", sans-serif';
+
+// read a CSS custom property with fallback ------------------------------------
+export function cssVar(name, def) {
+    const v = getComputedStyle(document.documentElement)
+        .getPropertyValue(name).trim();
+    return v || def;
+}
+
+// plot label and title fonts (set by --plot-font / --plot-title-font) ---------
+export function plotFont() {
+    return cssVar('--plot-font', '11px Tahoma, "DejaVu Sans", sans-serif');
+}
+export function plotTitleFont() {
+    return cssVar('--plot-title-font',
+        'bold 12px Tahoma, "DejaVu Sans", sans-serif');
+}
 
 export const SYS_COLOR = {          // satellite system colors
     G: '#006600', R: '#EE9900', E: '#CC00CC', J: '#0000AA', C: '#CC0000',
@@ -92,6 +106,8 @@ export class Plot {
     // start frame: clear, draw grid, clip to plot area
     begin() {
         this.resize();
+        this.font = plotFont();
+        this.fontB = plotTitleFont();
         const ctx = this.ctx, [ml, mr, mt, mb] = this.opt.margin;
         ctx.fillStyle = BG;
         ctx.fillRect(0, 0, this.w, this.h);
@@ -148,7 +164,7 @@ export class Plot {
         ctx.lineWidth = 1;
         ctx.strokeRect(this.ax[0] + 0.5, this.ax[1] + 0.5,
             this.ax[2] - this.ax[0] - 1, this.ax[3] - this.ax[1] - 1);
-        ctx.font = FONT;
+        ctx.font = this.font;
         ctx.fillStyle = FG;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
@@ -179,14 +195,14 @@ export class Plot {
             }
         }
         if (this.opt.title) {
-            ctx.font = FONT_B;
+            ctx.font = this.fontB;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillText(this.opt.title, (this.ax[0] + this.ax[2]) / 2,
                 this.ax[1] - 4);
         }
         if (this.opt.xlabel) {
-            ctx.font = FONT;
+            ctx.font = this.font;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillText(this.opt.xlabel, (this.ax[0] + this.ax[2]) / 2,
@@ -255,7 +271,7 @@ export class Plot {
     // text in pixel coordinates
     textPx(px, py, str, color, ax, ay, font) {
         const ctx = this.ctx;
-        ctx.font = font || FONT;
+        ctx.font = font || this.font || plotFont();
         ctx.fillStyle = color || FG;
         ctx.textAlign = ax || 'center';
         ctx.textBaseline = ay || 'middle';

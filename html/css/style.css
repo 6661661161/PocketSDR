@@ -10,6 +10,13 @@
     --warn: #FF4000;
     --font: 13px Tahoma, "DejaVu Sans", sans-serif;
     --mono: 13px Consolas, "DejaVu Sans Mono", monospace;
+    /* canvas plots: axis/in-plot labels, titles, sky plot satellite marks */
+    --plot-font: 11px Tahoma, "DejaVu Sans", sans-serif;
+    --plot-title-font: bold 12px Tahoma, "DejaVu Sans", sans-serif;
+    --sky-sat-size: 10px;
+    --sky-sat-font: 9px Tahoma, "DejaVu Sans", sans-serif;
+    /* status tables (BB CH, Satellites) */
+    --tbl-font: 13px Consolas, "DejaVu Sans Mono", monospace;
 }
 * {
     box-sizing: border-box;
@@ -59,7 +66,7 @@ body {
 }
 #tabbar .tab {
     padding: 6px 12px;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     border: 1px solid transparent;
     border-bottom: none;
@@ -227,7 +234,7 @@ body {
 table.chtbl {
     border-collapse: collapse;
     width: 100%;
-    font: var(--mono);
+    font: var(--tbl-font);
 }
 table.chtbl th {
     position: sticky;

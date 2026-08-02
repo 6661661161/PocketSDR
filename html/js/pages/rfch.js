@@ -1,6 +1,7 @@
 // Pocket SDR Web UI - RF CH page (band map, PSD and histograms)
 
-import {Plot, FG, GR, P1, P2, SYS_COLOR} from '../plot.js';
+import {Plot, FG, GR, P1, P2, SYS_COLOR, plotFont, plotTitleFont}
+    from '../plot.js';
 
 export const SIG_FREQ = { // signal carrier frequencies (MHz)
     L1CA: 1575.42, L1CB: 1575.42, L1CD: 1575.42, L1CP: 1575.42, L1S: 1575.42,
@@ -204,7 +205,7 @@ export class RfchPage {
             (msg.IQ == 1 ? 'I' : 'IQ') + ' (' + msg.bits + ' bits)', FG,
             'right', 'middle');
         p.textPx(p.ax[0] + 10, p.ax[1] + 16, 'CH' + msg.rfch, P1, 'left',
-            'middle', 'bold 12px Tahoma, sans-serif');
+            'middle', plotTitleFont());
     }
     updatePsd(msg) {
         if (!this.active) return;
@@ -275,14 +276,14 @@ export class RfchPage {
                     ctx.stroke();
                 }
                 p.textPx(x0 + 4, (py0 + py1) / 2, 'CH' + c.ch, P1, 'left',
-                    'middle', 'bold 11px Tahoma, sans-serif');
+                    'middle', plotTitleFont());
                 for (const s of this.sigs[c.ch] || []) {
                     const f = SIG_FREQ[s.sig];
                     if (!f || f < lo || f > hi) continue;
                     p.mark(f, y + 0.42, 7, SYS_COLOR[s.sys] || FG);
                     p.textPx(p.xp(f) + 5, p.yp(y + 0.48), s.sig,
                         SYS_COLOR[s.sys] || FG, 'left', 'middle',
-                        '10px Tahoma, sans-serif');
+                        plotFont());
                 }
             }
             p.end();
