@@ -207,10 +207,25 @@ button:disabled {
     width: 100%;
     margin: auto 0;
 }
-@media (max-width: 620px) { /* stack the status and the sky plot */
+@media (max-width: 620px) { /* status, sky plot and C/N0 by thirds */
+    .rcv-main {
+        grid-template-rows: 2fr 1fr;
+    }
     .rcv-top {
         grid-template-columns: 1fr;
-        grid-template-rows: 1fr minmax(170px, 42%);
+        grid-template-rows: 1fr 1fr;
+    }
+    .rcv-grid {
+        grid-template-columns: 1fr 1fr;
+        column-gap: 8px;
+    }
+    .rcv-body2 {
+        padding: 6px 8px;
+    }
+}
+@media (max-width: 340px) { /* too narrow for two columns */
+    .rcv-grid {
+        grid-template-columns: 1fr;
     }
 }
 .rcv-col {
