@@ -15,12 +15,12 @@ export class BbchPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>RF CH</label><select id="bb-rfch"><option>ALL</option>` +
+            `<label>RF</label><select id="bb-rfch"><option>ALL</option>` +
             [...Array(16)].map((_, i) => `<option>${i+1}</option>`).join('') +
             `</select>` +
-            `<label>System</label><select id="bb-sys">` +
+            `<label>Sys</label><select id="bb-sys">` +
             SYSTEMS.map(s => `<option>${s}</option>`).join('') + `</select>` +
-            `<label>State</label><select id="bb-state"><option>LOCK</option>` +
+            `<select id="bb-state"><option>LOCK</option>` +
             `<option>ALL</option></select>` +
             `<span class="space"></span>` +
             `<span class="mono" id="bb-buff"></span>` +

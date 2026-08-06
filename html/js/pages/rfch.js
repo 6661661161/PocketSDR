@@ -29,7 +29,7 @@ export class RfchPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>RF CH</label><select id="rf-ch"></select>` +
+            `<label>CH</label><select id="rf-ch"></select>` +
             `<span class="mono" id="rf-fs"></span>` +
             `<span class="space"></span>` +
             `<label>Filter BW (MHz)</label><select id="rf-bw">` +
@@ -222,7 +222,7 @@ export class RfchPage {
             this.bits = msg.bits;
             this.drawPsdPlot(this.psdPlot, msg, true);
             this.el.querySelector('#rf-fs').textContent =
-                'F_S: ' + (msg.fs * 1e-6).toFixed(6) + ' MHz';
+                (msg.fs * 1e-6).toFixed(3) + 'MHz';
         }
         else if (mode == 'tiles') {
             const start = parseInt(this.el.querySelector('#rf-ch').value);

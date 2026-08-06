@@ -17,7 +17,7 @@ export class CorrPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>BB CH</label>` +
+            `<label>BB</label>` +
             `<button id="co-prev" class="nav">&lt;</button>` +
             `<select id="co-ch"></select>` +
             `<button id="co-next" class="nav">&gt;</button>` +
@@ -148,7 +148,7 @@ export class CorrPage {
         const f = this.stat;
         this.el.querySelector('#co-info').textContent = f ?
             `RF CH: ${f[1]}  SAT: ${f[2]}  SIG: ${f[3]}  PRN: ${f[4]}` +
-            `  LOCK: ${f[5]} s` : `CH ${this.ch}: not locked`;
+            `  LOCK: ${f[5]} s` : '';
     }
     draw() {
         this.drawPlt1();

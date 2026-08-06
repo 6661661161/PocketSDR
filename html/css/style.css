@@ -207,6 +207,11 @@ button:disabled {
     width: 100%;
     margin: auto 0;
 }
+@media (max-width: 620px) { /* reach the controls that do not fit */
+    .toolbar {
+        overflow-x: auto;
+    }
+}
 @media (max-width: 620px) { /* status, sky plot and C/N0 by thirds */
     .rcv-main {
         grid-template-rows: 2fr 1fr;
