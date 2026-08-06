@@ -73,8 +73,17 @@ button:disabled {
     gap: 2px;
 }
 #btnbar button {
-    width: 60px;
+    width: 50px;
     padding: 6px 0px;
+}
+#btnbar button.help {
+    width: auto;
+    padding: 6px 5px;
+}
+#conn {
+    display: flex;
+    align-items: center;
+    padding-left: 4px;
 }
 .conn-on {
     color: #008800;
@@ -183,7 +192,7 @@ button:disabled {
     overflow: auto;
     padding: 10px 12px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
 }
 .rcv-sky {
     border: 2px solid var(--bg);
@@ -191,11 +200,18 @@ button:disabled {
 .rcv-cn0 {
     border: 2px solid var(--bg);
 }
-.rcv-grid {
+.rcv-grid { /* one column when too narrow, scroll when too tall */
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     column-gap: 12px;
     width: 100%;
+    margin: auto 0;
+}
+@media (max-width: 620px) { /* stack the status and the sky plot */
+    .rcv-top {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr minmax(170px, 42%);
+    }
 }
 .rcv-col {
     display: flex;
@@ -454,6 +470,66 @@ table.optbl button {
 .log-body pre {
     font: var(--mono);
     line-height: 1.25;
+}
+
+/* Help page */
+.hp-body {
+    color: var(--p1);
+    max-width: 760px;
+}
+.hp-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 6px;
+}
+.hp-logo {
+    width: 34px;
+    height: 34px;
+}
+.hp-name {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--act);
+    text-decoration: none;
+}
+.hp-name:hover {
+    text-decoration: underline;
+}
+.hp-sub {
+    color: var(--p2);
+}
+.hp-sec {
+    font-size: 11px;
+    font-weight: bold;
+    color: #333;
+    border-bottom: var(--bd);
+    margin: 10px 0 4px;
+}
+table.hp-tbl {
+    border-collapse: collapse;
+}
+table.hp-tbl td {
+    padding: 1px 8px 1px 0;
+    vertical-align: top;
+}
+table.hp-tbl td.hp-k {
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+}
+ul.hp-list {
+    padding-left: 16px;
+}
+ul.hp-list li {
+    padding: 1px 0;
+}
+ul.hp-list a {
+    color: var(--act);
+}
+.hp-copy {
+    color: var(--p2);
+    padding-top: 12px;
 }
 
 /* Options pages (Input / Output / Signal) */

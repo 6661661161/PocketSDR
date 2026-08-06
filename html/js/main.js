@@ -12,7 +12,22 @@ import {InpPage} from './pages/inp.js';
 import {OutPage} from './pages/out.js';
 import {SigPage} from './pages/sig.js';
 import {OptsPage} from './pages/opts.js';
+import {HelpPage} from './pages/help.js';
 import {LogPage} from './pages/log.js';
+
+// connection indicator icons (colored by the conn-on / conn-off class) --------
+const ICON_ON =
+    '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">' +
+    '<circle cx="8" cy="8" r="3.4" fill="currentColor"/>' +
+    '<path d="M3.4 3.4a6.5 6.5 0 0 0 0 9.2M12.6 3.4a6.5 6.5 0 0 1 0 9.2" ' +
+    'fill="none" stroke="currentColor" stroke-width="1.6" ' +
+    'stroke-linecap="round"/></svg>';
+const ICON_OFF =
+    '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">' +
+    '<circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.6"/>' +
+    '<path d="M4.3 11.7 11.7 4.3" stroke="currentColor" stroke-width="1.6" ' +
+    'stroke-linecap="round"/></svg>';
 
 const ws = new WsClient();
 
@@ -45,6 +60,7 @@ const pages = [
     {name: 'Output', page: new OutPage(app), notab: true},
     {name: 'Signal', page: new SigPage(app), notab: true},
     {name: 'System', page: new OptsPage(app), notab: true},
+    {name: 'Help', page: new HelpPage(app), notab: true},
     {name: 'Log', page: new LogPage(app)}
 ];
 let cur = -1;
@@ -86,13 +102,15 @@ pages.forEach((p, i) => {
 // WebSocket handlers ----------------------------------------------------------
 ws.on('open', () => {
     const conn = document.getElementById('conn');
-    conn.textContent = 'CONNECTED';
+    conn.innerHTML = ICON_ON;
+    conn.title = 'CONNECTED';
     conn.className = 'conn-on';
     app.msg('Connected to receiver.');
 });
 ws.on('close', () => {
     const conn = document.getElementById('conn');
-    conn.textContent = 'OFFLINE';
+    conn.innerHTML = ICON_OFF;
+    conn.title = 'OFFLINE';
     conn.className = 'conn-off';
     app.msg('Connection lost. Reconnecting...');
 });
@@ -124,7 +142,9 @@ document.getElementById('btn-inp').onclick = () => selPage(7);
 document.getElementById('btn-out').onclick = () => selPage(8);
 document.getElementById('btn-sig').onclick = () => selPage(9);
 document.getElementById('btn-sys').onclick = () => selPage(10);
+document.getElementById('btn-help').onclick = () => selPage(11);
+document.getElementById('conn').innerHTML = ICON_OFF;
 
 const hash = ['receiver', 'rfch', 'bbch', 'corr', 'sats', 'sol', 'array',
-    'inp', 'out', 'sig', 'opts', 'log'].indexOf(location.hash.slice(1));
+    'inp', 'out', 'sig', 'opts', 'help', 'log'].indexOf(location.hash.slice(1));
 selPage(hash < 0 ? 0 : hash);
