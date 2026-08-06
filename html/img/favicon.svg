@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Pocket SDR</title>
+<rect width="64" height="64" rx="15" fill="#062B4A"/>
+<path d="M32 9v46" stroke="#4FC3F7" stroke-width="2.6" opacity=".45"/>
+<path d="M6 46c9 0 13-1.5 16-11 3.5-11 7-18 10-18s6.5 7 10 18c3 9.5 7 11 16 11"
+      fill="none" stroke="#4FC3F7" stroke-width="6" stroke-linecap="round"
+      stroke-linejoin="round"/>
+</svg>

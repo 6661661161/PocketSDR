@@ -27,7 +27,7 @@ const app = {
 // update shared info first, before any page hello handler runs ----------------
 ws.on('hello', (msg) => {
     Object.assign(app.info, msg);
-    document.getElementById('title').textContent = msg.name;
+    document.getElementById('logo').title = msg.name + ' ver.' + msg.ver;
     document.getElementById('btn-start').disabled = !msg.cfg_ena || msg.run;
     document.getElementById('btn-stop').disabled = !msg.cfg_ena || !msg.run;
 });

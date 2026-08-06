@@ -2,7 +2,6 @@
 
 export const BG = '#FFFFFF';        // plot background
 export const FG = '#555555';        // frame, ticks and labels
-//export const GR = '#E4E4E4';        // grid lines
 export const GR = '#CCCCCC';        // grid lines
 export const P1 = '#003020';        // primary plot color
 export const P2 = '#888844';        // secondary plot color
@@ -179,7 +178,7 @@ export class Plot {
                 ctx.stroke();
                 if (this.opt.xlabels !== false) {
                     ctx.fillText(this.opt.taxis ? timeLabel(x) :
-                        x.toFixed(dec(this.xt)), px, this.ax[3] + 4);
+                        x.toFixed(dec(this.xt)), px, this.ax[3] + 3);
                 }
             }
         }
@@ -192,7 +191,7 @@ export class Plot {
                 ctx.moveTo(this.ax[0], py);
                 ctx.lineTo(this.ax[0] + 5, py);
                 ctx.stroke();
-                ctx.fillText(y.toFixed(dec(this.yt)), this.ax[0] - 4, py);
+                ctx.fillText(y.toFixed(dec(this.yt)), this.ax[0] - 3, py);
             }
         }
         if (this.opt.title) {

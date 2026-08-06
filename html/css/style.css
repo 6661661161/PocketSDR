@@ -1,22 +1,24 @@
 /* Pocket SDR Web UI - style sheet */
 
 :root {
-    --bg1: #F0F0F0;
+    --bg: #F0F0F0;
     --fg: #555555;
     --gr: #E4E4E4;
     --p1: #555555;
     --p2: #888844;
     --p3: #BBBBBB;
     --warn: #FF4000;
+    --dis: #888888;
+    --act: #196bee;
+    --bd: 1px solid #CCCCCC;
     --font: 10px "Noto Sans", sans-serif;
     --mono: 10px "Noto Mono", monospace;
     --plot-font: 10px "Noto Sans", sans-serif;
     --plot-title-font: bold 10px "Noto Sans", sans-serif;
-    /*--sky-sat-size: 12px;*/
-    /*--sky-sat-font: 12px Tahoma, "DejaVu Sans", sans-serif;*/
     --tbl-font: 9px "Noto Sans", sans-serif;
 }
 * {
+    font: var(--font);
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -25,47 +27,52 @@ html, body {
     height: 100%;
 }
 body {
-    font: var(--font);
-    color: #222;
-    padding: 4px 4px;
-    background: var(--bg1);
+    padding: 2px 2px;
+    background: var(--bg);
+}
+button {
+    font-weight: bold;
+    color: var(--act);
+    border: var(--bd);
+    padding: 2px 2px;
+}
+button:hover {
+    background: white;
+    cursor: pointer;
+}
+button:disabled {
+    color: var(--dis);
 }
 #app {
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-width: 600px;
+    min-width: 300px;
 }
 
 /* title/command bar */
 #titlebar {
+    font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-weight: bold;
-    padding: 1px 10px;
-    background: var(--bg1);
-    border: 1px solid #CCC
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 0px 8px;
+    border: var(--bd);
+}
+#logo {
+    display: block;
+    width: 18px;
+    height: 18px;
 }
 #btnbar {
     display: flex;
     gap: 2px;
 }
 #btnbar button {
-    font: var(--font);
-    font-weight: bold;
-    background: var(--bg1);
-    border: 1px solid #CCC;
     width: 65px;
-    padding: 1px 2px;
-    cursor: pointer;
-}
-#btnbar button:hover {
-    background: #EEE;
-}
-#btnbar button:disabled {
-    color: #AAA;
-    cursor: default;
+    padding: 6px 0px;
 }
 .conn-on {
     color: #008800;
@@ -76,29 +83,27 @@ body {
 
 /* tab bar */
 #tabbar {
-    font: var(--font)
-    font-weight: bold;
     display: flex;
-    background: var(--bg1);
-    border: 1px solid #CCC;
+    background: var(--bg);
+    border: var(--bd);
 }
 #tabbar .tab {
-    padding: 2px 10px;
+    color: var(--dis);
+    font-weight: bold;
+    padding: 6px 10px;
     cursor: pointer;
     user-select: none;
 }
-#tabbar .tab:hover {
-    color: var(--p1);
-}
 #tabbar .tab.active {
+    color: var(--fg);
     background: white;
-    color: var(--p1);
-    border: 1px solid #CCC;
-    font-weight: bold;
+    border: var(--bd);
 }
+
+/* Pages */
 #pages {
     flex: 1;
-    min-height: 0;
+    min-height: 0px;
     background: white;
     position: relative;
 }
@@ -115,10 +120,10 @@ body {
 #statusbar {
     display: flex;
     justify-content: space-between;
-    padding: 1px 4px;
+    padding: 2px 6px;
     background: white;
-    border: 1px solid #CCC;
-    color: darkblue;
+    border: var(--bd);
+    color: var(--act);
     white-space: nowrap;
     overflow: hidden;
 }
@@ -130,13 +135,12 @@ body {
 /* toolbar */
 .toolbar {
     display: flex;
-    align-items: center;
+    padding: 6px 6px;
     gap: 2px;
-    padding: 1px 4px;
-    background: var(--bg1);
-    border: 1px solid #CCC;
+    background: var(--bg);
     white-space: nowrap;
     overflow: hidden;
+    align-items: center;
 }
 .toolbar .space {
     flex: 1;
@@ -144,23 +148,14 @@ body {
 .toolbar .ttl {
     font-weight: bold;
 }
-.toolbar select, .toolbar input[type=text], .toolbar input[type=number] {
-    font: var(--font);
+.toolbar select, .toolbar input {
     background: white;
-    border: 1px solid #CCC;
+    border: var(--bd);
     padding: 0px 2px;
 }
-.toolbar input[type=number] {
-    width: 55px;
-}
 .toolbar button {
-    font: var(--font);
-    border: 1px solid #CCC;
-    padding: 1px 4px;
-    cursor: pointer;
-}
-.toolbar button:hover {
-    background: #EEE;
+    width: 60px;
+    padding; 6px 0px;
 }
 
 /* Receiver page */
@@ -177,21 +172,20 @@ body {
     overflow: hidden;
 }
 .rcv-body2 {
-    border: 2px solid var(--bg1);
+    border: 2px solid var(--bg);
     overflow: auto;
     padding: 10px 12px;
 }
 .rcv-sky {
-    border: 2px solid var(--bg1);
+    border: 2px solid var(--bg);
 }
 .rcv-cn0 {
-    border: 2px solid var(--bg1);
+    border: 2px solid var(--bg);
 }
 .rcv-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    column-gap: 20px;
-    max-width: 1000px;
+    column-gap: 12px;
 }
 .rcv-col {
     display: flex;
@@ -200,7 +194,7 @@ body {
 .rcv-row {
     display: flex;
     justify-content: space-between;
-    border-bottom: 2px solid var(--bg1)
+    border-bottom: 2px solid var(--bg)
 }
 .rcv-row .lbl {
     font-weight: bold;
@@ -220,8 +214,8 @@ body {
     width: 6px;
     height: 10px;
     margin-left: 2px;
-    border: 1px solid lightgrey;
-    background: var(--bg1);
+    border: var(--bd);
+    background: var(--bg);
 }
 
 /* RF CH page */
@@ -237,7 +231,7 @@ body {
     position: relative;
 }
 .plotbox {
-    border: 2px solid var(--bg1);
+    border: 2px solid var(--bg);
     position: relative;
     min-width: 0;
     min-height: 0;
@@ -280,8 +274,8 @@ table.chtbl {
 table.chtbl th {
     position: sticky;
     top: 0;
-    background: var(--bg1);
-    border: 1px solid #CCC;
+    background: var(--bg);
+    border: var(--bd);
     padding: 2px 4px;
     text-align: center;
     font-weight: bold;
@@ -308,7 +302,7 @@ table.chtbl tr.idle td {
     color: var(--p2);
 }
 table.chtbl tr.srch td {
-    color: blue;
+    color: var(--act);
 }
 table.chtbl th.bar, table.chtbl td.bar {
     min-width: 90px;
@@ -354,7 +348,7 @@ tr.idle .cn0bar {
     padding: 8px;
 }
 .ar-frame {
-    border: 1px solid #CCC;
+    border: var(--bd);
     margin-bottom: 10px;
     padding: 6px 10px;
 }
@@ -376,12 +370,12 @@ tr.idle .cn0bar {
 .ar-beam input {
     font: var(--font);
     width: 50px;
-    border: 1px solid #CCC;
+    border: var(--bd);
     padding: 1px 2px;
 }
 .ar-beam button {
-    background: var(--bg1);
-    border: 1px solid #CCC;
+    background: var(--bg);
+    border: var(--bd);
     padding: 1px 8px;
     cursor: pointer;
 }
@@ -415,13 +409,13 @@ table.optbl input {
     font: var(--font);
     width: 60px;
     text-align: right;
-    border: 1px solid #CCC;
+    border: var(--bd);
     padding: 1px 2px;
 }
 table.optbl button {
     font: var(--font);
-    background: var(--bg1);
-    border: 1px solid #AAA;
+    background: var(--bg);
+    border: var(--bd);
     padding: 1px 8px;
     cursor: pointer;
 }
@@ -472,7 +466,7 @@ table.optbl button {
 .cfg-body input[type=text], .cfg-body input[type=number],
 .cfg-body select {
     font: var(--font);
-    border: 1px solid #CCC;
+    border: var(--bd);
     padding: 1px 3px;
 }
 .cfg-body input[type=number] {
@@ -484,12 +478,12 @@ table.optbl button {
 .op-body input.wide {
     font: var(--font);
     width: min(640px, 75vw);
-    border: 1px solid #CCC;
+    border: var(--bd);
     padding: 1px 3px;
 }
 .op-body select {
     font: var(--font);
-    border: 1px solid #CCC;
+    border: var(--bd);
     padding: 1px 3px;
 }
 .op-body .cfg-row label {
@@ -510,7 +504,7 @@ table.cfg-tbl th {
     font-weight: bold;
 }
 .sig-sec {
-    border: 1px solid #CCC;
+    border: var(--bd);
     padding: 2px 8px;
     margin-bottom: 2px;
     display: flex;
