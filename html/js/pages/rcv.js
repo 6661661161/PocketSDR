@@ -247,7 +247,7 @@ export class RcvPage {
         const w = r0.width, h = r0.height;
         ctx.fillStyle = BG;
         ctx.fillRect(0, 0, w, h);
-        const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 20;
+        const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 13;
         const arch = this.archSel();
         if (arch && this.el.querySelector('#rcv-gain').checked) {
             this.drawGainOverlay(ctx, cx, cy, R, arch);
@@ -443,6 +443,7 @@ export class RcvPage {
     show() {
         this.active = true;
         this.satsKey = '';
+        this.draw(); // redraw with the current (possibly empty) data
         this.resub();
         this.app.ws.sub('array_stat', {cyc: 500});
         this.app.ws.get('opts'); // for elevation mask

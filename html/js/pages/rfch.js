@@ -331,6 +331,7 @@ export class RfchPage {
     show() {
         this.active = true;
         this.fillChs();
+        this.clear(); // no stale plots until the first data arrives
         this.resub();
         this.app.ws.get('ch_stat', {chno: -1}); // for signal marks
     }

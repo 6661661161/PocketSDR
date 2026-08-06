@@ -128,6 +128,7 @@ struct sdr_web_tag {            // Web UI server type
     sdr_mutex_t rcv_mtx;        // receiver pointer lock (for external readers)
     sdr_web_cfg_t cfg;          // receiver configuration
     int cfg_ena;                // receiver lifecycle control enabled
+    int run;                    // last reported receiver run state
     char cfg_file[1024];        // settings file ("": no save and restore)
     double opts_def[N_OPT];     // system option values at server start
     sock_t ssock;               // listen socket
@@ -1637,6 +1638,12 @@ static void *web_thread(void *arg)
             poll_log(web);
             web->log_tick = tick;
         }
+        int run = run_rcv(web) ? 1 : 0; // report stop at end of IF data file
+        if (run != web->run) {
+            web->run = run;
+            if (!run) save_cfg(web);
+            bcast_hello(web);
+        }
         for (int i = 0; i < MAX_WEB_CLI; i++) {
             web_cli_t *cli = web->cli + i;
             if (cli->state != 2 || cli->close_req) continue;
@@ -1756,6 +1763,7 @@ sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
         web->cli[i].sock = INVALID_SOCKET;
     }
     web->log_tick = sdr_get_tick();
+    web->run = rcv && rcv->state ? 1 : 0;
     get_opts(web->opts_def); // system option values to restore by default
     web->state = 1;
     if (!sdr_thread_create(&web->thread, web_thread, web)) {

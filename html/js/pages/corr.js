@@ -263,6 +263,7 @@ export class CorrPage {
     }
     show() {
         this.active = true;
+        this.draw(); // redraw with the current (possibly empty) data
         this.resub();
         this.app.ws.get('opts'); // for the DLL integration time
     }
