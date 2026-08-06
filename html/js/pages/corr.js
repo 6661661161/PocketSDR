@@ -23,16 +23,16 @@ export class CorrPage {
             `<button id="co-next">&gt;</button>` +
             `<span class="mono" id="co-info"></span>` +
             `<span class="space"></span>` +
-            `<label>IQ</label><select id="co-iq">` +
+            `<label>IQ/W(µs)/T(s)/Range</label><select id="co-iq">` +
             ['I', 'Q', 'IQ', 'AveI', 'AveIQ'].map(
                 v => `<option>${v}</option>`).join('') + `</select>` +
-            `<label>W (µs)</label><select id="co-w">` +
+            `<select id="co-w">` +
             ['0.2', '0.3', '0.5', '1', '1.5', '2', '3', '5', '10', '20'].map(
                 v => `<option>${v}</option>`).join('') + `</select>` +
-            `<label>T (s)</label><select id="co-t">` +
+            `<select id="co-t">` +
             ['0.1', '0.2', '0.5', '1', '2', '5', '10'].map(
                 v => `<option>${v}</option>`).join('') + `</select>` +
-            `<label>Range</label><select id="co-rng">` +
+            `<select id="co-rng">` +
             ['0.1', '0.15', '0.2', '0.3', '0.4', '0.6', '0.8', '1.0', '1.5',
                 '2'].map(v => `<option>${v}</option>`).join('') + `</select>` +
             `</div>` +
@@ -43,13 +43,14 @@ export class CorrPage {
             `</div></div>`;
         this.lockList = [];
         this.listKey = '';
+        this.tDll = 0.02;
         this.updateChList();
         this.el.querySelector('#co-iq').value = 'AveI';
         this.el.querySelector('#co-w').value = '5';
         this.el.querySelector('#co-t').value = '1';
         this.el.querySelector('#co-rng').value = '0.4';
         this.plt1 = new Plot(this.el.querySelector('#co-plt1'), {
-            margin: [28, 20, 18, 32], xlabel: 'COFF (ms)'});
+            margin: [28, 20, 18, 20], xlabel: 'COFF (ms)', xlabel_in: 1});
         this.plt2 = new Plot(this.el.querySelector('#co-plt2'), {
             margin: [28, 15, 18, 32], title: 'IP-QP', aspect: 1});
         this.plt3 = new Plot(this.el.querySelector('#co-plt3'), {
@@ -85,6 +86,9 @@ export class CorrPage {
             this.stat = stat;
             this.updateChList();
             this.updateInfo();
+        });
+        app.ws.on('opts', (msg) => {
+            if (msg.t_dll !== undefined) this.tDll = msg.t_dll;
         });
         app.ws.on('sel_ch', (msg) => { // follow selection by other clients
             if (this.active && msg.ch > 0 && msg.ch != this.ch) {
@@ -172,15 +176,25 @@ export class CorrPage {
             p.dots(x.slice(0, m.npos), y.slice(0, m.npos), 9, P1);
         }
         p.end();
-        // scale bar (W/10 us)
+        // scale bar (W/10 us) with end ticks, label at its left
         const bar = W * 1e-4 * p.xs; // in px
-        const bx = p.ax[2] - 15 - bar, by = p.ax[1] + 12;
-        p.ctx.strokeStyle = FG;
-        p.ctx.beginPath();
-        p.ctx.moveTo(bx, by);
-        p.ctx.lineTo(bx + bar, by);
-        p.ctx.stroke();
-        p.textPx(bx + bar / 2, by + 10, (W / 10).toFixed(2) + ' us', FG);
+        const bx = p.ax[2] - 12 - bar, by = p.ax[1] + 12;
+        const ctx = p.ctx;
+        ctx.strokeStyle = FG;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + bar, by);
+        ctx.moveTo(bx, by - 3.5);
+        ctx.lineTo(bx, by + 3.5);
+        ctx.moveTo(bx + bar, by - 3.5);
+        ctx.lineTo(bx + bar, by + 3.5);
+        ctx.stroke();
+        p.textPx(bx - 5, by, (W / 10).toFixed(2) + ' us', FG, 'right');
+        if (mode == 'AveI' || mode == 'AveIQ') { // DLL integration time
+            p.textPx(p.ax[2] - 12, by + 13,
+                'Integ = ' + this.tDll + ' s', FG, 'right');
+        }
     }
     drawPlt2() {
         const p = this.plt2, m = this.corr, h = this.hist;
@@ -241,6 +255,7 @@ export class CorrPage {
     show() {
         this.active = true;
         this.resub();
+        this.app.ws.get('opts'); // for the DLL integration time
     }
     hide() {
         this.active = false;

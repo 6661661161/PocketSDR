@@ -130,7 +130,7 @@ export class Plot {
         this.xt = (this.opt.taxis ? timeStep : tickStep)(
             this.xlim[1] - this.xlim[0],
             (this.ax[2] - this.ax[0]) / (this.opt.taxis ? 75 : 55));
-        this.yt = tickStep(this.ylim[1] - this.ylim[0],
+        this.yt = this.opt.ystep || tickStep(this.ylim[1] - this.ylim[0],
             (this.ax[3] - this.ax[1]) / 35);
         ctx.strokeStyle = GR;
         ctx.lineWidth = 0.6;
@@ -203,10 +203,18 @@ export class Plot {
         }
         if (this.opt.xlabel) {
             ctx.font = this.font;
-            ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
-            ctx.fillText(this.opt.xlabel, (this.ax[0] + this.ax[2]) / 2,
-                this.h - 2);
+            if (this.opt.xlabel_in) { // inside the plot at the bottom left
+                ctx.textAlign = 'left';
+                ctx.fillText(this.opt.xlabel, this.ax[0] + 6, this.ax[3] - 5);
+            }
+            else { // just under the tick labels
+                const fs = parseFloat(this.font) || 10;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(this.opt.xlabel, (this.ax[0] + this.ax[2]) / 2,
+                    this.ax[3] + 5 + (this.opt.xlabels === false ? 0 : fs * 1.3));
+            }
         }
     }
     // polyline in data coordinates
@@ -300,16 +308,25 @@ export class Plot {
         ctx.fillRect(px - wpix / 2, Math.min(py0, py1), wpix,
             Math.abs(py0 - py1));
     }
-    // downward triangle mark in pixel coordinates
-    markPx(px, py, size, color) {
+    // downward triangle mark in pixel coordinates (hollow: outlined)
+    markPx(px, py, size, color, hollow) {
         const ctx = this.ctx;
-        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.moveTo(px, py + size / 2);
         ctx.lineTo(px - size / 2, py - size / 2);
         ctx.lineTo(px + size / 2, py - size / 2);
         ctx.closePath();
-        ctx.fill();
+        if (hollow) {
+            ctx.fillStyle = BG;
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        else {
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
     }
     // downward triangle mark in data coordinates
     mark(x, y, size, color) {

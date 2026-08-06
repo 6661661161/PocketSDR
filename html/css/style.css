@@ -175,6 +175,8 @@ button:disabled {
     border: 2px solid var(--bg);
     overflow: auto;
     padding: 10px 12px;
+    display: flex;
+    align-items: center;
 }
 .rcv-sky {
     border: 2px solid var(--bg);
@@ -186,6 +188,7 @@ button:disabled {
     display: grid;
     grid-template-columns: 1fr 1fr;
     column-gap: 12px;
+    width: 100%;
 }
 .rcv-col {
     display: flex;
@@ -284,6 +287,7 @@ table.chtbl th {
 }
 table.chtbl td {
     padding: 0px 4px;
+    line-height: 1.25;
     text-align: right;
     color: var(--p1);
     white-space: nowrap;

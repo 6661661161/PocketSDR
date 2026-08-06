@@ -98,7 +98,7 @@ export class RcvPage {
         this.sky = this.el.querySelector('#rcv-sky');
         this.cn0Plot = new Plot(this.el.querySelector('#rcv-cn0'), {
             margin: [25, 15, 18, 18], title: 'Signal C/N0 (dB-Hz)',
-            ylim: [20, 55], xticks: false});
+            ylim: [20, 55], ystep: 5, xticks: false});
         for (const id of ['rcv-rf', 'rcv-sys']) {
             this.el.querySelector('#' + id).onchange = () => this.resub();
         }
@@ -234,7 +234,7 @@ export class RcvPage {
         const w = r0.width, h = r0.height;
         ctx.fillStyle = BG;
         ctx.fillRect(0, 0, w, h);
-        const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 16;
+        const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 20;
         const arch = this.archSel();
         if (arch && this.el.querySelector('#rcv-gain').checked) {
             this.drawGainOverlay(ctx, cx, cy, R, arch);
@@ -258,10 +258,22 @@ export class RcvPage {
         ctx.fillStyle = FG;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('N', cx, cy - R - 8);
-        ctx.fillText('E', cx + R + 8, cy);
-        ctx.fillText('S', cx, cy + R + 8);
-        ctx.fillText('W', cx - R - 8, cy);
+        // azimuth labels: N/E/S/W outside, 30 deg steps rotated along the ring
+        for (let az = 0; az < 360; az += 30) {
+            const lbl = {0: 'N', 90: 'E', 180: 'S', 270: 'W'}[az];
+            const rr = R + (lbl ? 9 : 8);
+            const x = cx + rr * Math.sin(az * D2R);
+            const y = cy - rr * Math.cos(az * D2R);
+            if (lbl) {
+                ctx.fillText(lbl, x, y);
+                continue;
+            }
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(az <= 180 ? (az - 90) * D2R : (az + 90) * D2R);
+            ctx.fillText('' + az, 0, 0);
+            ctx.restore();
+        }
         const satR = parseFloat(cssVar('--sky-sat-size', '10')) || 10;
         ctx.font = cssVar('--sky-sat-font', '9px Tahoma, sans-serif');
         for (const sat of this.sats) {

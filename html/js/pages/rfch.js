@@ -108,7 +108,7 @@ export class RfchPage {
         for (let i = 1; i <= n; i++) opts.push('' + i);
         for (let i = 1; i < n; i += 4) opts.push(i + '-' + (i + 3));
         sel.innerHTML = opts.map(v => `<option>${v}</option>`).join('');
-        sel.value = n > 1 ? 'ALL' : '1';
+        sel.value = '1';
     }
     mode() {
         const v = this.el.querySelector('#rf-ch').value;
@@ -187,15 +187,15 @@ export class RfchPage {
         p.vline(fo, GR);
         p.line(x, y, P1);
         if (marks) {
-            let dy = 18;
+            let dy = 14;
             for (const s of this.sigs[msg.rfch] || []) {
                 const f = SIG_FREQ[s.sig];
                 if (!f || f < p.xlim[0] || f > p.xlim[1]) continue;
                 const color = SYS_COLOR[s.sys] || FG;
-                p.markPx(p.xp(f), p.ax[1] + dy, 10, color);
-                p.textPx(p.xp(f) + 8, p.ax[1] + dy, s.sig, color, 'left',
+                p.markPx(p.xp(f), p.ax[1] + dy, 8, color, 1);
+                p.textPx(p.xp(f) + 7, p.ax[1] + dy, s.sig, color, 'left',
                     'middle');
-                dy += 14;
+                dy += 11;
             }
         }
         p.end();
