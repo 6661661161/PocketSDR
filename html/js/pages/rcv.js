@@ -118,6 +118,14 @@ export class RcvPage {
         app.ws.on('opts', (msg) => {
             if (msg.el_mask !== undefined) this.elMask = msg.el_mask;
         });
+        app.ws.on('hello', (msg) => { // clear the plots on receiver stop
+            if (msg.run) return;
+            this.sigStat = {};
+            this.satInfo = {};
+            this.sats = [];
+            this.satsKey = '';
+            if (this.active) this.draw();
+        });
         this.el.querySelector('#rcv-gain').onchange = () => this.draw();
         this.sky.onclick = (ev) => this.onSkyClick(ev);
     }
@@ -186,7 +194,12 @@ export class RcvPage {
     updateSol(msg) {
         if (!this.active) return;
         const f = msg.str.split(/\s+/);
-        if (f.length < 7) return;
+        if (f.length < 7) { // receiver stopped: initial state
+            for (const id of ['stime', 'sstat', 'lat', 'lon', 'hgt', 'nsat']) {
+                this.set(id, '---');
+            }
+            return;
+        }
         this.set('stime', f[0] + ' ' + f[1]);
         this.set('sstat', f[6], false);
         this.set('lat', f[2]);
@@ -258,22 +271,18 @@ export class RcvPage {
         ctx.fillStyle = FG;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        // azimuth labels: N/E/S/W outside, 30 deg steps rotated along the ring
+        // azimuth labels just outside the ring, rotated to read radially
+        ctx.textBaseline = 'bottom';
         for (let az = 0; az < 360; az += 30) {
-            const lbl = {0: 'N', 90: 'E', 180: 'S', 270: 'W'}[az];
-            const rr = R + (lbl ? 9 : 8);
-            const x = cx + rr * Math.sin(az * D2R);
-            const y = cy - rr * Math.cos(az * D2R);
-            if (lbl) {
-                ctx.fillText(lbl, x, y);
-                continue;
-            }
+            const lbl = az % 90 ? '' + az : 'NESW'[az / 90];
             ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(az <= 180 ? (az - 90) * D2R : (az + 90) * D2R);
-            ctx.fillText('' + az, 0, 0);
+            ctx.translate(cx + R * Math.sin(az * D2R),
+                cy - R * Math.cos(az * D2R));
+            ctx.rotate(az * D2R);
+            ctx.fillText(lbl, 0, -2);
             ctx.restore();
         }
+        ctx.textBaseline = 'middle';
         const satR = parseFloat(cssVar('--sky-sat-size', '10')) || 10;
         ctx.font = cssVar('--sky-sat-font', '9px Tahoma, sans-serif');
         for (const sat of this.sats) {

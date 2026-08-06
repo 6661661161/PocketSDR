@@ -18,9 +18,9 @@ export class CorrPage {
         this.el.innerHTML =
             `<div class="toolbar">` +
             `<label>BB CH</label>` +
-            `<button id="co-prev">&lt;</button>` +
+            `<button id="co-prev" class="nav">&lt;</button>` +
             `<select id="co-ch"></select>` +
-            `<button id="co-next">&gt;</button>` +
+            `<button id="co-next" class="nav">&gt;</button>` +
             `<span class="mono" id="co-info"></span>` +
             `<span class="space"></span>` +
             `<label>IQ/W(µs)/T(s)/Range</label><select id="co-iq">` +
@@ -52,7 +52,7 @@ export class CorrPage {
         this.plt1 = new Plot(this.el.querySelector('#co-plt1'), {
             margin: [28, 20, 18, 20], xlabel: 'COFF (ms)', xlabel_in: 1});
         this.plt2 = new Plot(this.el.querySelector('#co-plt2'), {
-            margin: [28, 15, 18, 32], title: 'IP-QP', aspect: 1});
+            margin: [28, 15, 18, 20], title: 'IP-QP', aspect: 1});
         this.plt3 = new Plot(this.el.querySelector('#co-plt3'), {
             margin: [28, 20, 18, 20], title: 'Time (s) - IP/QP'});
         this.el.querySelector('#co-prev').onclick = () => this.navCh(-1);
@@ -89,6 +89,15 @@ export class CorrPage {
         });
         app.ws.on('opts', (msg) => {
             if (msg.t_dll !== undefined) this.tDll = msg.t_dll;
+        });
+        app.ws.on('hello', (msg) => { // clear the plots on receiver stop
+            if (msg.run) return;
+            this.corr = this.hist = this.stat = null;
+            this.lockList = [];
+            this.listKey = '';
+            this.updateChList();
+            this.updateInfo();
+            if (this.active) this.draw();
         });
         app.ws.on('sel_ch', (msg) => { // follow selection by other clients
             if (this.active && msg.ch > 0 && msg.ch != this.ch) {

@@ -91,8 +91,13 @@ export class RfchPage {
             this.chs = msg.chs;
             if (this.mode() == 'band') this.drawBand();
         });
-        app.ws.on('hello', () => {
+        app.ws.on('hello', (msg) => {
             this.fillChs();
+            if (!msg.run) { // clear the plots on receiver stop
+                this.sigs = {};
+                this.chs = [];
+                if (this.active) this.clear();
+            }
             if (this.active) {
                 this.resub();
                 this.app.ws.get('ch_stat', {chno: -1});
@@ -199,8 +204,11 @@ export class RfchPage {
             }
         }
         p.end();
-        p.textPx(p.ax[0] + 10, p.ax[3] - 14, fo.toFixed(3) + ' MHz', FG,
-            'left', 'middle');
+        // LO frequency mark with the label on its IQ: right / I: left side
+        const fx = p.xp(fo), fy = p.ax[3] - 10;
+        p.markPx(fx, fy, 8, FG, 1);
+        p.textPx(fx + (msg.IQ == 1 ? -7 : 7), fy, fo.toFixed(3) + ' MHz', FG,
+            msg.IQ == 1 ? 'right' : 'left', 'middle');
         p.textPx(p.ax[2] - 10, p.ax[3] - 14,
             (msg.IQ == 1 ? 'I' : 'IQ') + ' (' + msg.bits + ' bits)', FG,
             'right', 'middle');
@@ -248,6 +256,24 @@ export class RfchPage {
                 FG, 'right', 'middle');
             p.textPx(p.ax[2] - 10, p.ax[1] + 30,
                 'Std: ' + Math.sqrt(vari).toFixed(2), FG, 'right', 'middle');
+        }
+    }
+    // draw all plots of the current view empty (axes only) --------------------
+    clear() {
+        const mode = this.mode();
+        if (mode == 'single') {
+            for (const p of [this.psdPlot, ...this.histPlot]) {
+                p.begin();
+                p.end();
+            }
+            this.el.querySelector('#rf-fs').textContent = '';
+        }
+        else if (mode == 'band') this.drawBand();
+        else {
+            for (const p of this.tilePlot) {
+                p.begin();
+                p.end();
+            }
         }
     }
     drawBand() {

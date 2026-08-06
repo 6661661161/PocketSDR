@@ -544,14 +544,20 @@ static void http_req(sdr_web_t *web, web_cli_t *cli)
     }
 }
 
+// running SDR receiver (NULL: stopped) ----------------------------------------
+static sdr_rcv_t *run_rcv(sdr_web_t *web)
+{
+    return web->rcv && web->rcv->state ? web->rcv : NULL;
+}
+
 // send receiver status topic --------------------------------------------------
 static void send_rcv_stat(sdr_web_t *web, web_cli_t *cli)
 {
     char stat[2048] = "", esc[4096], buff[4608];
     int strs[SDR_MAX_STR];
 
-    sdr_rcv_rcv_stat(web->rcv, stat, sizeof(stat));
-    sdr_rcv_str_stat(web->rcv, strs);
+    sdr_rcv_rcv_stat(run_rcv(web), stat, sizeof(stat));
+    sdr_rcv_str_stat(run_rcv(web), strs);
     jsn_esc(esc, sizeof(esc), stat);
     snprintf(buff, sizeof(buff), "{\"type\":\"rcv_stat\",\"str\":\"%s\","
         "\"strs\":[%d,%d,%d,%d,%d,%d,%d,%d]}", esc, strs[0], strs[1], strs[2],
@@ -562,8 +568,8 @@ static void send_rcv_stat(sdr_web_t *web, web_cli_t *cli)
 // send BB channel status topic ------------------------------------------------
 static void send_ch_stat(sdr_web_t *web, web_cli_t *cli, web_sub_t *sub)
 {
-    sdr_rcv_ch_stat(web->rcv, sub->sys, sub->chno, sub->min_lock, sub->rfch,
-        sub->opt, web->stat_buff, STAT_BUFF_SIZE);
+    sdr_rcv_ch_stat(run_rcv(web), sub->sys, sub->chno, sub->min_lock,
+        sub->rfch, sub->opt, web->stat_buff, STAT_BUFF_SIZE);
     int n = snprintf(web->json_buff, JSON_BUFF_SIZE,
         "{\"type\":\"ch_stat\",\"str\":\"");
     n += jsn_esc(web->json_buff + n, JSON_BUFF_SIZE - n - 4, web->stat_buff);
@@ -589,7 +595,7 @@ static void send_sat_stat(sdr_web_t *web, web_cli_t *cli, web_sub_t *sub)
         }
         sat[len] = '\0';
         if (*p == ',') p++;
-        if (!len || !sdr_rcv_sat_stat(web->rcv, sat, stat, sizeof(stat))) {
+        if (!len || !sdr_rcv_sat_stat(run_rcv(web), sat, stat, sizeof(stat))) {
             continue;
         }
         if (sscanf(stat, "%15s %lf %lf %d %d %d %d %d", id, &az, &el, &pvt,
@@ -608,7 +614,7 @@ static void send_pvt_sol(sdr_web_t *web, web_cli_t *cli)
 {
     char stat[128] = "", esc[256], buff[320];
 
-    sdr_rcv_pvt_sol(web->rcv, stat, sizeof(stat));
+    sdr_rcv_pvt_sol(run_rcv(web), stat, sizeof(stat));
     jsn_esc(esc, sizeof(esc), stat);
     snprintf(buff, sizeof(buff), "{\"type\":\"pvt_sol\",\"str\":\"%s\"}", esc);
     ws_send_text(cli, buff);
@@ -1276,7 +1282,7 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
         }
         sub.ena = 1;
         sub.next = sdr_get_tick();
-        sub.log_pos = cli->subs[id].ena ? cli->subs[id].log_pos : 0;
+        sub.log_pos = cli->subs[id].log_pos; // resume, do not resend the ring
         cli->subs[id] = sub;
         if (id == TOPIC_CORR || id == TOPIC_CORR_HIST) {
             update_sel_ch(web, sub.ch, sub.width);

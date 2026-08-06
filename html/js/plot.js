@@ -204,9 +204,9 @@ export class Plot {
         if (this.opt.xlabel) {
             ctx.font = this.font;
             ctx.textBaseline = 'bottom';
-            if (this.opt.xlabel_in) { // inside the plot at the bottom left
-                ctx.textAlign = 'left';
-                ctx.fillText(this.opt.xlabel, this.ax[0] + 6, this.ax[3] - 5);
+            if (this.opt.xlabel_in) { // inside the plot at the bottom right
+                ctx.textAlign = 'right';
+                ctx.fillText(this.opt.xlabel, this.ax[2] - 6, this.ax[3] - 5);
             }
             else { // just under the tick labels
                 const fs = parseFloat(this.font) || 10;

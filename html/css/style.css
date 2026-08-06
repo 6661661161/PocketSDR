@@ -153,6 +153,10 @@ button:disabled {
     border: var(--bd);
     padding: 0px 2px;
 }
+.toolbar button.nav {
+    width: auto;
+    padding: 0 2px;
+}
 .toolbar button {
     width: 60px;
     padding; 6px 0px;

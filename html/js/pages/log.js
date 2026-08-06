@@ -55,9 +55,8 @@ export class LogPage {
         this.pre.textContent = this.filter().join('\n');
         this.body.scrollTop = this.body.scrollHeight;
     }
-    show() {
+    show() { // keep the lines already received; the server resumes from there
         this.active = true;
-        this.lines = [];
         this.render();
         this.app.ws.sub('log', {cyc: 200});
     }
