@@ -31,6 +31,7 @@ body {
     background: var(--bg);
 }
 button {
+    --font: 11px "Noto Sans", sans-serif;
     font-weight: bold;
     color: var(--act);
     border: var(--bd);
@@ -52,13 +53,14 @@ button:disabled {
 
 /* title/command bar */
 #titlebar {
+    --font: 11px "Noto Sans", sans-serif;
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: space-between;
     white-space: nowrap;
     overflow: hidden;
-    padding: 0px 8px;
+    padding: 0px 6px;
     border: var(--bd);
 }
 #logo {
@@ -71,7 +73,7 @@ button:disabled {
     gap: 2px;
 }
 #btnbar button {
-    width: 65px;
+    width: 60px;
     padding: 6px 0px;
 }
 .conn-on {
@@ -90,7 +92,7 @@ button:disabled {
 #tabbar .tab {
     color: var(--dis);
     font-weight: bold;
-    padding: 6px 10px;
+    padding: 6px 6px;
     cursor: pointer;
     user-select: none;
 }
@@ -146,16 +148,17 @@ button:disabled {
     flex: 1;
 }
 .toolbar .ttl {
+    font-size: 11px;
     font-weight: bold;
 }
 .toolbar select, .toolbar input {
     background: white;
     border: var(--bd);
-    padding: 0px 2px;
+    padding: 1px 2px;
 }
 .toolbar button.nav {
     width: auto;
-    padding: 0 2px;
+    padding: 2px 4px;
 }
 .toolbar button {
     width: 60px;
@@ -167,11 +170,11 @@ button:disabled {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-rows: 1fr minmax(180px, 47%);
+    grid-template-rows: 1fr minmax(180px, 45%);
 }
 .rcv-top {
     display: grid;
-    grid-template-columns: 1fr minmax(220px, 40%);
+    grid-template-columns: 1fr minmax(200px, 35%);
     min-height: 0;
     overflow: hidden;
 }
@@ -433,7 +436,7 @@ table.optbl button {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: 68% 32%;
+    grid-template-columns: 67% 33%;
     grid-template-rows: 1fr 1fr;
 }
 .corr-plt3 {
@@ -467,9 +470,13 @@ table.optbl button {
     padding: 2px 2px;
 }
 .cfg-row label {
-    width: 110px;
+    width: 130px;
     font-weight: bold;
     color: #333;
+}
+.cfg-row label.sig-chk {
+    width: auto;
+    font-weight: normal;
 }
 .cfg-body input[type=text], .cfg-body input[type=number],
 .cfg-body select {
@@ -480,8 +487,26 @@ table.optbl button {
 .cfg-body input[type=number] {
     width: 90px;
 }
+.cfg-body input.num {
+    width: 60px;
+}
+.cfg-body input.num2 {
+    width: 120px;
+}
 .cfg-body input.wide {
-    width: min(480px, 60vw);
+    width: min(560px, 66vw);
+}
+/* no spin buttons on the option value fields */
+.op-body input[type=number], .cfg-body input[type=number] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+.op-body input[type=number]::-webkit-outer-spin-button,
+.op-body input[type=number]::-webkit-inner-spin-button,
+.cfg-body input[type=number]::-webkit-outer-spin-button,
+.cfg-body input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 .op-body input.wide {
     font: var(--font);
@@ -525,13 +550,27 @@ table.cfg-tbl th {
     width: 72px;
 }
 .sig-sec .sg-prn {
-    width: 80px;
+    width: 62px;
 }
 .sig-sec .sig-grid {
     flex: 1;
     display: grid;
     grid-template-columns: repeat(auto-fill, 62px);
     row-gap: 1px;
+}
+.cfg-row .sig-grid { /* receiver log types */
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 62px);
+    row-gap: 1px;
+}
+.cfg-row .sig-chk {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+.cfg-row input[type=checkbox] {
+    margin: 0 3px 0 0;
 }
 .sig-sec .sig-chk, .sig-sec .sig-head {
     display: flex;

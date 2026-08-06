@@ -50,11 +50,11 @@ export class CorrPage {
         this.el.querySelector('#co-t').value = '1';
         this.el.querySelector('#co-rng').value = '0.4';
         this.plt1 = new Plot(this.el.querySelector('#co-plt1'), {
-            margin: [28, 20, 18, 20], xlabel: 'COFF (ms)', xlabel_in: 1});
+            margin: [28, 18, 18, 18], xlabel: 'COFF (ms)', xlabel_in: 1});
         this.plt2 = new Plot(this.el.querySelector('#co-plt2'), {
-            margin: [28, 15, 18, 20], title: 'IP-QP', aspect: 1});
+            margin: [28, 18, 18, 18], title: 'IP-QP', aspect: 1});
         this.plt3 = new Plot(this.el.querySelector('#co-plt3'), {
-            margin: [28, 20, 18, 20], title: 'Time (s) - IP/QP'});
+            margin: [28, 18, 18, 18], title: 'Time (s) - IP/QP'});
         this.el.querySelector('#co-prev').onclick = () => this.navCh(-1);
         this.el.querySelector('#co-next').onclick = () => this.navCh(1);
         this.el.querySelector('#co-ch').onchange = () =>
@@ -180,17 +180,17 @@ export class CorrPage {
             }
             if (m.n > m.npos) { // additional correlators
                 p.line(x.slice(m.npos), y.slice(m.npos), P2);
-                p.dots(x.slice(m.npos), y.slice(m.npos), 2.5, P1);
+                p.dots(x.slice(m.npos), y.slice(m.npos), 2, P1);
             }
-            p.dots(x.slice(0, m.npos), y.slice(0, m.npos), 9, P1);
+            p.dots(x.slice(0, m.npos), y.slice(0, m.npos), 7, P1);
         }
         p.end();
         // scale bar (W/10 us) with end ticks, label at its left
         const bar = W * 1e-4 * p.xs; // in px
-        const bx = p.ax[2] - 12 - bar, by = p.ax[1] + 12;
+        const bx = p.ax[2] - 15 - bar, by = p.ax[1] + 18;
         const ctx = p.ctx;
         ctx.strokeStyle = FG;
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = 0.6;
         ctx.beginPath();
         ctx.moveTo(bx, by);
         ctx.lineTo(bx + bar, by);
@@ -201,7 +201,7 @@ export class CorrPage {
         ctx.stroke();
         p.textPx(bx - 5, by, (W / 10).toFixed(2) + ' us', FG, 'right');
         if (mode == 'AveI' || mode == 'AveIQ') { // DLL integration time
-            p.textPx(p.ax[2] - 12, by + 13,
+            p.textPx(p.ax[2] - 15, by + 15,
                 'Integ = ' + this.tDll + ' s', FG, 'right');
         }
     }
@@ -220,8 +220,8 @@ export class CorrPage {
             }
         }
         if (m) {
-            p.point(m.C[0], m.C[1], 11, BG);
-            p.point(m.C[0], m.C[1], 9, P1);
+            p.point(m.C[0], m.C[1], 9, BG);
+            p.point(m.C[0], m.C[1], 7, P1);
         }
         p.end();
     }
@@ -241,21 +241,21 @@ export class CorrPage {
                 ip.push(h.P[i*2]);
                 qp.push(h.P[i*2+1]);
             }
-            p.line(t, qp, P2);
-            p.line(t, ip, P1);
-            p.point(t[h.n-1], ip[h.n-1], 11, BG);
-            p.point(t[h.n-1], ip[h.n-1], 9, P1);
+            p.line(t, qp, P2, 0.6);
+            p.line(t, ip, P1, 0.6);
+            p.point(t[h.n-1], ip[h.n-1], 9, BG);
+            p.point(t[h.n-1], ip[h.n-1], 7, P1);
         }
         p.end();
-        p.textPx(p.ax[2] - 70, p.ax[1] + 16, '— IP', P1, 'left');
-        p.textPx(p.ax[2] - 40, p.ax[1] + 16, '— QP', P2, 'left');
+        p.textPx(p.ax[2] - 70, p.ax[1] + 15, '— IP', P1, 'left');
+        p.textPx(p.ax[2] - 40, p.ax[1] + 15, '— QP', P2, 'left');
         const f = this.stat;
         if (f) {
-            p.textPx(p.ax[0] + 12, p.ax[1] + 16,
+            p.textPx(p.ax[0] + 10, p.ax[1] + 15,
                 `C/N0: ${f[6]} dB-Hz  COFF: ${f[8]} ms  DOP: ${f[9]} Hz  ` +
                 `ADR: ${f[10]} cyc  SYNC: ${f[11]}  #NAV: ${f[12]}`, FG,
                 'left');
-            p.textPx(p.ax[0] + 12, p.ax[3] - 16,
+            p.textPx(p.ax[0] + 10, p.ax[3] - 15,
                 `ERR_P: ${f[16]} cyc  ERR_C: ${f[17]} m  PLI: ${f[18]}  ` +
                 `NAV: ${f[20]}-${f[21]}-${f[22]}  WEEK: ${f[23]}  ` +
                 `TOW: ${f[24]} s`, FG, 'left');

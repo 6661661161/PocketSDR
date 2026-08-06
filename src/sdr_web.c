@@ -866,6 +866,11 @@ static void send_cfg(sdr_web_t *web, web_cli_t *cli)
     }
     jsn_esc(esc, sizeof(esc), str);
     n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"paths\":\"%s\",", esc);
+    for (int i = m = 0; i < SDR_WEB_N_LOG; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%d", i ? "," : "",
+            c->log_mask[i]);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"log_mask\":\"%s\",", str);
     jsn_esc(esc, sizeof(esc), c->opt);
     snprintf(buff + n, JSON_BUFF_SIZE - n, "\"opt\":\"%s\"}", esc);
     ws_send_text(cli, buff);
@@ -930,6 +935,10 @@ static int save_cfg(sdr_web_t *web)
     for (int i = 0; i < SDR_MAX_STR; i++) {
         fprintf(fp, "%s%s", i ? "|" : " ", c->str_path[i]);
     }
+    fprintf(fp, "\nlogs   =");
+    for (int i = 0; i < SDR_WEB_N_LOG; i++) {
+        fprintf(fp, "%s%d", i ? "," : " ", c->log_mask[i]);
+    }
     fprintf(fp, "\nrfch   = %s\n", c->rfch);
     fprintf(fp, "opt    = %s\n", c->opt);
     fprintf(fp, "fftw   = %s\n", c->fftw);
@@ -986,6 +995,11 @@ static int load_cfg(sdr_web_t *web)
             int n = parse_csv(val, vals, SDR_MAX_STR);
             for (int i = 0; i < n; i++) c->str_type[i] = (int)CLIP(vals[i], 0, 4);
         }
+        else if (!strcmp(key, "logs")) {
+            double lv[SDR_WEB_N_LOG];
+            int n = parse_csv(val, lv, SDR_WEB_N_LOG);
+            for (int i = 0; i < n; i++) c->log_mask[i] = lv[i] != 0.0;
+        }
         else if (!strcmp(key, "paths")) {
             for (int i = 0; i < SDR_MAX_STR; i++) {
                 char *q = strchr(val, '|');
@@ -1032,6 +1046,7 @@ static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
     sdr_rcv_t *rcv;
 
     sdr_func_init(c->fftw); // reload FFTW wisdom (receiver is stopped)
+    sdr_log_mask(c->log_mask, SDR_WEB_N_LOG);
     snprintf(opt, sizeof(opt), "-RFCH %.1000s %.1000s", c->rfch, c->opt);
 
     for (int i = 0; i < c->nsig; i++) {
@@ -1434,6 +1449,12 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
                 int m = parse_csv(str, vals, SDR_MAX_STR);
                 for (int i = 0; i < m; i++) {
                     c->str_type[i] = (int)CLIP(vals[i], 0, 4);
+                }
+            }
+            if (jsn_str(msg, "log_mask", str, sizeof(str))) {
+                int m = parse_csv(str, vals, SDR_WEB_N_LOG);
+                for (int i = 0; i < m; i++) {
+                    c->log_mask[i] = vals[i] != 0.0;
                 }
             }
             if (jsn_str(msg, "paths", str, sizeof(str))) {

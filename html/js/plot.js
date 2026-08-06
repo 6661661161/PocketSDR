@@ -7,6 +7,7 @@ export const P1 = '#003020';        // primary plot color
 export const P2 = '#888844';        // secondary plot color
 export const P3 = '#BBBBBB';        // reference line color
 export const WARN = '#FF4000';      // warning color
+export const LW = 0.6;                // line width
 
 // read a CSS custom property with fallback ------------------------------------
 export function cssVar(name, def) {
@@ -133,7 +134,7 @@ export class Plot {
         this.yt = this.opt.ystep || tickStep(this.ylim[1] - this.ylim[0],
             (this.ax[3] - this.ax[1]) / 35);
         ctx.strokeStyle = GR;
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = LW;
         ctx.beginPath();
         if (this.opt.xticks !== false) {
             for (const x of tickList(this.xlim, this.xt)) {
@@ -161,7 +162,7 @@ export class Plot {
         const ctx = this.ctx;
         ctx.restore();
         ctx.strokeStyle = FG;
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = LW;
         ctx.strokeRect(this.ax[0] + 0.5, this.ax[1] + 0.5,
             this.ax[2] - this.ax[0] - 1, this.ax[3] - this.ax[1] - 1);
         ctx.font = this.font;
@@ -213,7 +214,7 @@ export class Plot {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
                 ctx.fillText(this.opt.xlabel, (this.ax[0] + this.ax[2]) / 2,
-                    this.ax[3] + 5 + (this.opt.xlabels === false ? 0 : fs * 1.3));
+                    this.ax[3] + 2 + (this.opt.xlabels === false ? 0 : fs * 1.3));
             }
         }
     }
@@ -221,7 +222,7 @@ export class Plot {
     line(xs, ys, color, width) {
         const ctx = this.ctx;
         ctx.strokeStyle = color;
-        ctx.lineWidth = width || 0.6;
+        ctx.lineWidth = width || LW;
         ctx.beginPath();
         for (let i = 0; i < xs.length; i++) {
             const px = this.xp(xs[i]), py = this.yp(ys[i]);
@@ -247,7 +248,7 @@ export class Plot {
     vline(x, color) {
         const ctx = this.ctx;
         ctx.strokeStyle = color;
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = LW;
         const px = Math.round(this.xp(x)) + 0.5;
         ctx.beginPath();
         ctx.moveTo(px, this.ax[1]);
@@ -257,7 +258,7 @@ export class Plot {
     hline(y, color) {
         const ctx = this.ctx;
         ctx.strokeStyle = color;
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = LW;
         const py = Math.round(this.yp(y)) + 0.5;
         ctx.beginPath();
         ctx.moveTo(this.ax[0], py);
@@ -296,7 +297,7 @@ export class Plot {
         }
         if (stroke) {
             ctx.strokeStyle = stroke;
-            ctx.lineWidth = 0.6;
+            ctx.lineWidth = LW;
             ctx.stroke();
         }
     }

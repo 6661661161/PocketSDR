@@ -140,7 +140,7 @@ export class SigPage {
         }
         this.el.querySelector('#sg-note').textContent = !ena ?
             'configuration not supported by the server' :
-            run ? 'stop the receiver to edit' : '';
+            run ? 'Stop the receiver to edit' : '';
     }
     setAll(ena) {
         for (const e of this.el.querySelectorAll('.sg-sig')) e.checked = ena;

@@ -1,4 +1,4 @@
-// Pocket SDR Web UI - Input Options page
+﻿// Pocket SDR Web UI - Input Options page
 
 const FMTS = ['INT8', 'INT8X2', 'RAW8', 'RAW16', 'RAW16I', 'RAW32', 'CS8',
     'CS16'];
@@ -24,21 +24,21 @@ export class InpPage {
             `<div class="cfg-row"><label>IF Data File Path</label>` +
             `<input type="text" id="in-file" class="wide"></div>` +
             `<div class="cfg-row"><label>Time Offset / Scale</label>` +
-            `<input type="number" id="in-toff" step="any">` +
-            `<input type="number" id="in-tscale" step="any"></div>` +
+            `<input type="number" id="in-toff" class="num" step="any">` +
+            `<input type="number" id="in-tscale" class="num" step="any"></div>` +
             `<div class="cfg-row"><label>IF Data Format</label>` +
             `<select id="in-fmt">` + FMTS.map((f, i) =>
                 `<option value="${i+1}">${f}</option>`).join('') +
             `</select></div>` +
             `<div class="cfg-row"><label>Sampling Rate (Msps)</label>` +
-            `<input type="number" id="in-fs" step="any"></div>` +
+            `<input type="number" id="in-fs" class="num" step="any"></div>` +
             `<div class="cfg-row"><label>USB Bus / Port (-1: any)</label>` +
-            `<input type="number" id="in-bus">` +
-            `<input type="number" id="in-port"></div>` +
+            `<input type="number" id="in-bus" class="num">` +
+            `<input type="number" id="in-port" class="num"></div>` +
             `<div class="cfg-row"><label>FE Configuration File</label>` +
             `<input type="text" id="in-conf" class="wide"></div>` +
             `<div class="cfg-row"><label>SoapySDR Driver</label>` +
-            `<input type="text" id="in-driver"></div>` +
+            `<input type="text" id="in-driver" class="num2"></div>` +
             `<table class="cfg-tbl"><thead><tr><th>RF CH</th>` +
             `<th>LO Freq (MHz)</th><th>Sampling</th><th>Bits</th></tr>` +
             `</thead><tbody>` +
@@ -66,7 +66,7 @@ export class InpPage {
         this.el.querySelector('#in-apply').disabled = !ena || run;
         this.el.querySelector('#in-note').textContent = !ena ?
             'configuration not supported by the server' :
-            run ? 'stop the receiver to edit' : '';
+            run ? 'Stop the receiver to edit' : '';
     }
     populate(cfg) {
         this.setEditable(cfg.ena, cfg.run);

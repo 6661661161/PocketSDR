@@ -30,8 +30,6 @@ export class OptsPage {
         this.el.innerHTML =
             `<div class="toolbar">` +
             `<label class="ttl">System Options</label>` +
-            `<label>(applied to the running receiver; changes are not ` +
-            `persistent)</label>` +
             `<span class="space"></span>` +
             `<span class="warn-txt" id="op-note"></span>` +
             `<button id="op-def">Set Default</button>` +
@@ -54,8 +52,8 @@ export class OptsPage {
             `<div class="cfg-row"><label>Receiver Options</label>` +
             `<input type="text" id="op-opt" class="wide"></div>` +
             `<div class="cfg-note">Receiver Options: -ARCH=n -GAIN=dB ` +
-            `-BW=MHz -LPF=ch:MHz -FAST_SRCH (applied at receiver start)` +
-            `</div></div>`;
+            `-BW=MHz -LPF=ch:MHz -FAST_SRCH -ARRAY (applied at receiver ` +
+            `start)</div></div>`;
         for (const row of this.el.querySelectorAll('tr[data-key]')) {
             row.querySelector('button').onclick = () => {
                 const val = parseFloat(
@@ -88,9 +86,11 @@ export class OptsPage {
         };
         this.el.querySelector('#op-opt').oninput = () => this.syncAcq();
         app.ws.on('opts', (msg) => this.update(msg));
-        app.ws.on('open', () => {
-            if (this.active) this.app.ws.get('opts');
-        });
+        for (const ev of ['open', 'hello']) { // follow the run state
+            app.ws.on(ev, () => {
+                if (this.active) this.app.ws.get('opts');
+            });
+        }
     }
     update(msg) {
         if (!this.active) return;
@@ -107,11 +107,13 @@ export class OptsPage {
             }
         }
         this.syncAcq();
-        for (const id of ['#op-apply', '#op-acq', '#op-fftw', '#op-opt']) {
-            this.el.querySelector(id).disabled = !msg.ena || msg.run;
+        const dis = !msg.ena || msg.run; // options apply at channel creation
+        for (const e of this.el.querySelectorAll('.op-body input, ' +
+            '.op-body select, .op-body button, #op-apply, #op-def')) {
+            e.disabled = dis;
         }
         this.el.querySelector('#op-note').textContent = !msg.ena ? '' :
-            msg.run ? 'stop the receiver to edit the fields below' : '';
+            msg.run ? 'Stop the receiver to edit' : '';
     }
     // set acquisition mode by the receiver options -----------------------------
     syncAcq() {

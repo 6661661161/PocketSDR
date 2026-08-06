@@ -338,6 +338,7 @@ typedef struct {                // SDR antenna array type
 } sdr_array_t;
 
 #define SDR_WEB_MAX_SIG 64      // max signal entries in Web UI configuration
+#define SDR_WEB_N_LOG  10       // number of receiver log types
 
 typedef struct {                // Web UI receiver configuration type
     int inp;                    // input source (0:USB device,1:file,2:SoapySDR)
@@ -356,6 +357,7 @@ typedef struct {                // Web UI receiver configuration type
     char prn[SDR_WEB_MAX_SIG][256]; // PRN number lists
     int str_type[SDR_MAX_STR];  // output stream types (SDR_STR_???)
     char str_path[SDR_MAX_STR][1024]; // output stream paths
+    int log_mask[SDR_WEB_N_LOG]; // receiver log type mask (TIME,POS,...,LOG)
     char rfch[1024];            // RF CH assignments (<sig>:<ch>[,...] ...)
     char opt[1024];             // receiver options
     char fftw[1024];            // FFTW wisdom file path

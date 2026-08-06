@@ -60,10 +60,10 @@ export class SolPage {
         const titles = ['Pos E (m)', 'Pos N (m)', 'Pos U (m)', '# Sats'];
         this.plots = [0, 1, 2, 3].map(i => new Plot(
             this.el.querySelector('#so-plt' + i), {
-            margin: [25, 15, i == 0 ? 20 : 4, i == 3 ? 20 : 4], taxis: 1,
+            margin: [25, 18, i == 0 ? 18 : 4, i == 3 ? 18 : 4], taxis: 1,
             xlabels: i == 3})); // time labels only on the bottom panel
         this.horiPlot = new Plot(this.el.querySelector('#so-plt4'), {
-            margin: [25, 15, 20, 20]});
+            margin: [25, 18, 18, 18]});
         this.titles = titles;
         this.solStr = '';
         this.el.querySelector('#so-type').onchange = () => this.setMode();
@@ -143,13 +143,12 @@ export class SolPage {
                 if (i < 3) {
                     p.hline(0, P3);
                     const v = enu.map(e => e[i]);
-                    p.line(t, v, GR);
-                    p.dots(t, v, 2, P1);
-                    if (n > 0) p.point(t[n-1], v[n-1], 9, P1);
+                    p.dots(t, v, 1.5, P1);
+                    if (n > 0) p.point(t[n-1], v[n-1], 7, P1);
                 }
                 else {
-                    p.dots(t, this.log.map(s => s.nsat), 2, P2);
-                    p.dots(t, this.log.map(s => s.ns), 2, P1);
+                    p.line(t, this.log.map(s => s.nsat), P2);
+                    p.line(t, this.log.map(s => s.ns), P1);
                 }
                 p.end();
                 p.textPx(p.ax[0] + 6, p.ax[1] + 10, this.titles[i], FG,
@@ -171,10 +170,10 @@ export class SolPage {
             p.hline(0, GR);
             const e = enu.map(v => v[0]), nn = enu.map(v => v[1]);
             p.line(e, nn, GR);
-            p.dots(e, nn, 2, P1);
+            p.dots(e, nn, 1.5, P1);
             if (n > 0) {
-                p.point(e[n-1], nn[n-1], 11, BG);
-                p.point(e[n-1], nn[n-1], 9, P1);
+                p.point(e[n-1], nn[n-1], 9, BG);
+                p.point(e[n-1], nn[n-1], 7, P1);
             }
             p.end();
         }

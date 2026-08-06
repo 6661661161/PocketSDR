@@ -387,6 +387,9 @@ int main(int argc, char **argv)
                     paths[i]);
             }
             snprintf(cfg.fftw, sizeof(cfg.fftw), "%s", fftw_wisdom);
+            for (int i = 0; i < SDR_WEB_N_LOG; i++) { // library defaults
+                cfg.log_mask[i] = !(i == 7 || i == 8);
+            }
             sdr_web_set_cfg(web, &cfg, ini_file);
             if (nch <= 0) { // restore the settings of the last session
                 sdr_web_load_cfg(web);
