@@ -1,23 +1,27 @@
-# pocket_trk Web UI Design (sdr_web)
+# Web UI Design (sdr_web, pocket_web)
 
-Date: 2026-08-01
+Date: 2026-08-01 (updated 2026-08-07)
 
 ----
 
 ## Summary
 
-This note describes the design of a Web UI feature for the PocketSDR receiver
-AP `pocket_trk`. The AP embeds a small HTTP + WebSocket server implemented in
-a new source `src/sdr_web.c` (part of libsdr). The Web UI itself is a static
+This note describes the design of the PocketSDR Web UI. The receiver AP
+`pocket_web` embeds a small HTTP + WebSocket server implemented in
+`src/sdr_web.c` (part of libsdr). The Web UI itself is a static
 single-page application (plain JavaScript + CSS, no framework, no build step)
 served by that server. The browser communicates with the AP over a single
 WebSocket connection: JSON text messages for commands and low-rate status,
 binary frames for high-rate bulk data (PSD, correlator snapshot, correlator
 history). PSD and correlator history views update at 10 Hz.
 
-The final goal is functional parity with the desktop GUI `python/pocket_sdr.py`
-(monitor part). The first version implements a basic subset: receiver status,
-BB channel table, PSD/histogram, correlator page, and log page.
+The goal is functional parity with the desktop GUI `python/pocket_sdr.py`,
+monitoring and receiver control alike.
+
+The feature was first developed inside `pocket_trk` and split off as the
+separate AP `pocket_web` once the receiver lifecycle moved to the browser:
+the two APs then wanted opposite command lines, `pocket_trk` a full one and
+the server almost none. `pocket_trk` is back to the CLI receiver it was.
 
 ## Requirements
 
@@ -29,6 +33,9 @@ BB channel table, PSD/histogram, correlator page, and log page.
    provide only basic screens.
 4. The PSD and correlator-history screens update at 10 Hz.
 5. The server-side UI support is new code in `src/sdr_web.c`.
+
+Requirement 1 is met by `pocket_web` rather than by `pocket_trk`; see the
+Summary.
 
 ## Goals and Non-Goals
 
@@ -44,22 +51,23 @@ Goals:
   `sdr_rcv_ch_stat()`, `sdr_rcv_corr_stat()`, `sdr_rcv_rfch_psd()` etc.;
   `sdr_web.c` only adds a transport + encoding layer on top of the same
   calls. No public API changes.
-- Keep `pocket_trk` behavior unchanged when the Web UI is not enabled.
+- Keep `pocket_trk` free of the Web UI. The server AP is separate, so the
+  CLI receiver keeps its command line and its behavior.
+- Receiver lifecycle from the browser: `pocket_web` starts with the receiver
+  stopped and the browser configures, starts and stops it. The settings of
+  the last session are restored at start and saved at exit.
 
 Non-Goals (for now, see Future Extensions):
 
-- Receiver lifecycle control from the browser (Start/Stop, input/signal/
-  output configuration). `pocket_trk` is configured by its command line and
-  starts immediately; the Web UI monitors and adjusts the running receiver.
 - Authentication and TLS. The server binds to 127.0.0.1 by default; remote
   use should go through a reverse proxy.
 
 ## Architecture
 
 ```
- pocket_trk process                                  browser
+ pocket_web process                                  browser
  +-----------------------------------------+        +---------------------+
- | rcv_thread / ch_thread (existing)       |        | index.html          |
+ | rcv_thread / ch_thread (sdr_rcv.c)      |        | index.html          |
  |        |  monitor API (sdr_rcv_*)       |  HTTP  | css/style.css       |
  | +------+---------------------------+    |<------>| js/... (ES modules) |
  | | sdr_web server thread            |    |        |                     |
@@ -86,16 +94,32 @@ typedef struct sdr_web_tag sdr_web_t;
 
 sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
     const char *html_dir);
-void sdr_web_stop(sdr_web_t *web);
+void sdr_web_init_cfg(sdr_web_cfg_t *cfg);
+void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg,
+    const char *file);
+int sdr_web_load_cfg(sdr_web_t *web);
+int sdr_web_start_rcv(sdr_web_t *web);
+sdr_rcv_t *sdr_web_stop(sdr_web_t *web);
 ```
 
 - `sdr_web_start()` binds `addr:port` (TCP, `SO_REUSEADDR`), starts the server
   thread (`sdr_thread_create()`), and returns an opaque handle. NULL on error.
+  `rcv` may be NULL: the server then starts with no receiver.
+- `sdr_web_init_cfg()` fills a `sdr_web_cfg_t` with the defaults used on the
+  first start without a settings file.
+- `sdr_web_set_cfg()` hands the configuration to the server and enables the
+  lifecycle and configuration commands. Without it the server is monitor-only.
+  `file` is the settings file, saved when the receiver stops and when the
+  server stops.
+- `sdr_web_load_cfg()` restores the configuration and the system options from
+  that file.
+- `sdr_web_start_rcv()` starts the receiver from the stored configuration, as
+  the Start command does, for the `-start` option of `pocket_web`.
 - `sdr_web_stop()` signals the thread, closes all sockets, joins and frees.
-- Winsock is already initialized by `sdr_func_init()` -> `strinitcom()`
-  (called in `pocket_trk.c` before receiver open), and `-lws2_32` /
-  `-lwsock32` are already linked; no build-level changes beyond adding the
-  object file.
+  The current receiver is not closed; it is returned to the caller.
+- Winsock is initialized by `sdr_func_init()` -> `strinitcom()`, which
+  `pocket_web` calls before starting the server, and `-lws2_32` / `-lwsock32`
+  are already linked; no build-level changes beyond adding the object file.
 
 ### Thread model
 
@@ -192,8 +216,8 @@ Notes:
 
 - `ch_stat` needs a large buffer: 128 B x `SDR_MAX_NCH` (1500) = 192 KB,
   allocated once in `sdr_web_t` (`sdr_malloc()`), same sizing as the Python
-  GUI. The 7680 B static buffer of `pocket_trk.c:print_rcv_stat()` is not
-  reused.
+  GUI, not the small static buffer the console status display of `pocket_trk`
+  uses.
 - `psd` samples `sdr_rcv_rfch_psd(rcv, ch, tave, nfft, psd)` with `tave` and
   `nfft` (default 2048) from the subscription; returns N/2 bins for I
   sampling, N for IQ.
@@ -219,24 +243,36 @@ Notes:
 | `array_save`| `file` (default array_calib.txt) | `sdr_rcv_array_save()` |
 | `array_load`| `file` (default array_calib.txt) | `sdr_rcv_array_load()` |
 
-Receiver lifecycle commands (enabled when `pocket_trk` passes its
-configuration via `sdr_web_set_cfg()`; the flat values mirror the
-`sdr_web_cfg_t` fields, with `fs`/`fo` in MHz and multi-value fields as
-comma-separated strings, output paths separated by `|`):
+Receiver lifecycle commands (enabled when the AP passes its configuration via
+`sdr_web_set_cfg()`; the flat values mirror the `sdr_web_cfg_t` fields, with
+`fs`/`fo`/`lpf` in MHz and multi-value fields as comma-separated strings,
+output paths separated by `|`):
 
 | cmd        | arguments                                    | action     |
 |------------|----------------------------------------------|------------|
 | `start`    | -                                            | open the receiver from the stored configuration |
 | `stop`     | -                                            | close the running receiver (Web UI stays up) |
-| `set_inp`  | `inp`, `file`, `fmt`, `fs`, `fo`, `IQ`, `bits`, `toff`, `tscale`, `bus`, `port`, `conf`, `driver` | update input configuration |
-| `set_sig`  | `sigs` ("SIG:prns ..."), `opt`               | update signal configuration |
-| `set_out`  | `types`, `paths`                             | update output streams |
+| `set_inp`  | `inp`, `file`, `fmt`, `fs`, `fo`, `IQ`, `bits`, `lpf`, `toff`, `tscale`, `bus`, `port`, `conf`, `conf_ena`, `dev_opt`, `driver` | update input configuration |
+| `set_sig`  | `sigs` ("SIG:prns ..."), `rfch`              | update signal configuration |
+| `set_out`  | `types`, `paths`, `log_mask`, `array_sep`    | update output streams |
+| `set_sys`  | `fftw`, `opt`, `fast_acq`                    | update system configuration |
+| `opts_default` | -                                        | restore the default system options |
 
 `set_*` are rejected while the receiver runs. On `start`/`stop` the server
-broadcasts an updated `hello` (with `run` and `cfg_ena` flags) to all
-clients. With `-web`, `pocket_trk` no longer exits when a file input ends or
-the initial open fails; it stays idle until started from the Web UI or
-interrupted.
+broadcasts an updated `hello` (with `run` and `cfg_ena` flags) to all clients.
+The AP stays up when a file input ends or when an open fails; it goes idle
+until started again from the Web UI.
+
+Options that the receiver takes as tokens of its options string but the UI
+presents as their own controls -- the digital LPF bandwidths, the fast
+acquisition mode and the RF CH separation -- are configuration fields of
+their own (`lpf_bw[]`, `fast_acq`, `array_sep`) and are composed into the
+options string when the receiver is opened. The Receiver Options text stays
+as the user typed it instead of gaining and losing `-LPF=` / `-FAST_SRCH` /
+`-ARRAY` tokens behind their back. The RF frontend device options
+(`-GAIN=` / `-BW=`) are a separate field (`dev_opt`) as in the Tk GUI, and
+the device configuration file has an enable flag (`conf_ena`) so that its
+path survives being switched off.
 
 Every command is answered with an `ack` JSON message. `setopt` accepts only
 the key names already handled by `sdr_rcv_setopt()`.
@@ -399,11 +435,20 @@ html/
   js/pages/rfch.js  RF CH page (PSD + histograms)
   js/pages/bbch.js  BB CH page (channel table)
   js/pages/corr.js  Correlator page
-  js/pages/sats.js  Satellites page        (phase 2)
-  js/pages/sol.js   Solution page          (phase 2)
-  js/pages/array.js Array page             (phase 3)
+  js/pages/sats.js  Satellites page
+  js/pages/sol.js   Solution page
+  js/pages/array.js Array page
   js/pages/log.js   Log page
+  js/pages/inp.js   Input Options page
+  js/pages/out.js   Output Options page
+  js/pages/sig.js   Signal Options page
+  js/pages/opts.js  System Options page
+  js/pages/help.js  Help page
+  img/favicon.svg
 ```
+
+The Options and Help pages have no tab; they are reached from the command
+buttons in the title bar (Start, Stop, Input, Output, Signal, System, ?).
 
 Plain ES modules, no framework, no bundler — the server serves the tree
 as-is, matching the project's no-dependency policy. Layout uses CSS
@@ -424,7 +469,9 @@ grid/flexbox (the Tk `place(relx/relwidth)` layouts translate directly).
 
 ### Pages and phases
 
-Phase 1 (this feature branch):
+All four phases below are implemented.
+
+Phase 1:
 
 - **Shell**: title bar with receiver name/version (from `hello`), tab bar,
   status bar (message + `Time: xxx s` from `rcv_stat`).
@@ -448,13 +495,18 @@ Phase 2: Receiver page sky plot + signal C/N0 bar chart, RF CH "ALL"
 frequency-band map and 2x2 PSD tiling, Satellites page, Solution page
 (client-side solution ring like `sol_log`, Pos ENU / Horiz modes).
 
-Phase 3: Array page (needs `array_*` topics/commands), runtime-settings
-panel (`setopt` subset), gain heatmap overlay + beam setting on the sky plot.
+Phase 3: Array page (`array_*` topics/commands), System Options page
+(`setopt`), gain heatmap overlay + beam setting on the sky plot.
 
-Phase 4 (future, separate design): receiver lifecycle from the browser
-(start/stop, input/output/signal/system dialogs) to reach full
-`pocket_sdr.py` parity — requires `pocket_trk` to start idle and accept a
-configuration over the WebSocket.
+Phase 4: receiver lifecycle from the browser — Start / Stop and the Input,
+Output and Signal Options pages, laid out after the Tk dialogs, with the
+settings saved to and restored from the AP settings file. This is what made
+the server its own AP; see the Summary.
+
+Responsive layout: the pages reflow below 620 px so a phone can drive the
+receiver — the Receiver page stacks status, sky plot and C/N0 in thirds, the
+RF CH page puts the PSD over the histograms, and the Correlator page stacks
+its three panels.
 
 ### Visual style
 
@@ -469,34 +521,54 @@ Ported from the Tk GUI so both frontends look alike:
   `Consolas, "DejaVu Sans Mono", monospace`. Numeric cells right-aligned.
 - Base layout 800x600, fully responsive via flex/grid.
 
-## pocket_trk Integration
+## pocket_web AP
 
-New options (parsed in the existing chain, `app/pocket_trk/pocket_trk.c`):
+`app/pocket_web/pocket_web.c` is the whole AP, about 150 lines. It needs no
+receiver-open code of its own: `sdr_web.c` builds the receiver from the
+configuration.
 
 ```
--web [addr:]port    enable the Web UI server (default addr 127.0.0.1)
--html dir           Web UI document root (default: <exe_dir>/../html)
+pocket_web [-web [addr:]port] [-html dir] [-ini file] [-start]
+           [-debug file] [-v]
 ```
 
-Integration points:
+```c
+sdr_func_init("");                 /* also initializes the socket library */
+web = sdr_web_start(NULL, addr, port, html_dir);
+sdr_web_init_cfg(&cfg);
+sdr_web_set_cfg(web, &cfg, ini_file);
+sdr_web_load_cfg(web);             /* settings of the last session */
+if (start) sdr_web_start_rcv(web); /* -start */
+while (!intr) sdr_sleep_msec(100); /* lifecycle belongs to the browser */
+rcv = sdr_web_stop(web);
+if (rcv) sdr_rcv_close(rcv);
+```
 
-- After the receiver is opened (`pocket_trk.c` around line 313):
-  `if (web_port) web = sdr_web_start(rcv, web_addr, web_port, html_dir);`
-  a start failure is a warning, not fatal.
-- Before `sdr_rcv_close()` (around line 331): `sdr_web_stop(web);`
-- The console status loop is untouched and coexists (`-ti 0` silences it).
-  There is no stdin key handling in `pocket_trk`, so the WebSocket is the
-  only command path — no contention with existing input handling.
+The AP prints no runtime status of its own; the receiver is monitored from
+the Web UI. It stays up when the receiver fails to open, so the settings can
+be fixed from the browser.
 
-`doc/command_ref.md` gains the two options.
+Shutdown matters here, because a session that dies without closing the
+device leaves the RF frontend streaming. On Windows the C runtime raises
+SIGINT only for Ctrl-C and Ctrl-Break, while a console close, logoff or
+shutdown terminates the process as soon as the handler returns, so the AP
+installs a `SetConsoleCtrlHandler()` that waits for the main thread to close
+the device (`pocket_trk` does the same). `run_sdr.sh` starts and stops the
+server; on MSYS2 it stops it with SIGQUIT, which reaches a native Windows
+process as CTRL_BREAK_EVENT, because plain `kill` is `TerminateProcess()`
+and would leave the frontend streaming.
+
+`doc/command_ref.md` documents the AP; `doc/api_ref.md` documents the
+`sdr_web.c` API.
 
 ## Build Changes
 
 - `lib/build/libsdr.mk`: add `sdr_web.o` to `OBJ`, plus its compile rule and
   the `pocket_sdr.h` dependency line (3 places).
-- `src/pocket_sdr.h`: `sdr_web_t` opaque typedef + the two prototypes.
-- `app/pocket_trk/makefile`: no change (links `libsdr.a`; `-lws2_32` is
-  already present on Windows).
+- `src/pocket_sdr.h`: `sdr_web_t` opaque typedef, `sdr_web_cfg_t` and the
+  prototypes.
+- `app/pocket_web/makefile`: new, a copy of the `pocket_trk` one with a
+  single target (links `libsdr.a`; `-lws2_32` is already present on Windows).
 - `test/utest/makefile`: optional `test_sdr_web` exercising the server on an
   ephemeral port with a minimal HTTP/WS client (handshake, frame round-trip,
   JSON command -> ack), avoiding test-only hooks in the source.
@@ -538,8 +610,6 @@ web server runs on its own thread and only reads).
 
 ## Future Extensions
 
-- Receiver lifecycle over WebSocket (start idle, configure, start/stop) for
-  full `pocket_sdr.py` parity including the settings dialogs.
 - Embedding the `html/` tree into the binary (generated C arrays) for a
   single-file distribution; `-html` would then switch to disk for
   development.
@@ -556,6 +626,10 @@ web server runs on its own thread and only reads).
 3. Binary topics (`psd`, `corr`, `corr_hist`) + sel_ch policy.
 4. `html/` phase-1 UI: shell, plot.js, Receiver / BB CH / RF CH /
    Correlator / Log pages.
-5. Commands (`set_gain`, `set_filt`, `setopt`, `log_level`), pocket_trk
-   options, `doc/command_ref.md` update.
+5. Commands (`set_gain`, `set_filt`, `setopt`, `log_level`), AP options,
+   `doc/command_ref.md` update.
 6. Phase-2 pages (sky plot, C/N0 bars, band map, Satellites, Solution).
+7. Phase-3 Array page and System Options page.
+8. Phase-4 receiver lifecycle and the Input / Output / Signal Options pages,
+   settings save and restore.
+9. Split the server off as the `pocket_web` AP and revert `pocket_trk`.

@@ -1,7 +1,7 @@
 # Pocket SDR Command Reference
 
 <div style="text-align: right;">
-<strong>ver.0.19  2026-07-20</strong>
+<strong>ver.0.19  2026-08-07</strong>
 </div>
 
 ---
@@ -469,6 +469,11 @@ The AP does not start the receiver by itself unless `-start` is given. The input
 ```
 pocket_web -web 0.0.0.0:8080
 ```
+
+`run_sdr.sh` in the top directory starts and stops the server. On MSYS2 it
+stops it with SIGQUIT, which reaches a native Windows process as
+CTRL_BREAK_EVENT; a plain `kill` is `TerminateProcess()` and would leave the
+RF frontend streaming, which needs a USB reset to recover.
 
 
 <div class="pagebreak"></div>
