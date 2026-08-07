@@ -10,6 +10,7 @@
 //  2022-05-23  0.3  change coding style
 //  2022-08-08  1.0  support multiple contexts for libusb-1.0
 //  2024-06-29  1.1  change API sdr_usb_open()
+//  2026-08-07  1.2  add API sdr_usb_reset()
 //
 #include "pocket_sdr.h"
 #ifdef WIN32
@@ -138,6 +139,29 @@ void sdr_usb_close(sdr_usb_t *usb)
     libusb_exit(usb->ctx);
 #endif // WIN32
     sdr_free(usb);
+}
+
+//------------------------------------------------------------------------------
+//  Reset USB device. The device re-enumerates, so it has to be closed and
+//  opened again after this call.
+//
+//  args:
+//      usb         (I)   USB device
+//
+//  return
+//      status (1: OK, 0: error)
+//
+int sdr_usb_reset(sdr_usb_t *usb)
+{
+    if (!usb) return 0;
+
+#ifdef WIN32
+    CCyUSBDevice *h = (CCyUSBDevice *)usb->h;
+    return h->Reset() ? 1 : 0;
+#else
+    int ret = libusb_reset_device(usb->h);
+    return !ret || ret == LIBUSB_ERROR_NOT_FOUND; // NOT_FOUND: re-enumerated
+#endif // WIN32
 }
 
 //------------------------------------------------------------------------------

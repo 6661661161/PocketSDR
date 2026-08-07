@@ -413,6 +413,7 @@ void sdr_mutex_unlock(sdr_mutex_t *mtx);
 sdr_usb_t *sdr_usb_open(int bus, int port, const uint16_t *vid,
     const uint16_t *pid, int n);
 void sdr_usb_close(sdr_usb_t *usb);
+int sdr_usb_reset(sdr_usb_t *usb);
 int sdr_usb_req(sdr_usb_t *usb, int mode, uint8_t req, uint16_t val,
     uint8_t *data, int size);
 
