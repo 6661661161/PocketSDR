@@ -52,6 +52,7 @@
 #define MAX_LOG_SEND   200      // max log lines per push
 #define WEB_PROTO      1        // wire protocol version
 #define DEF_SEL_WIDTH  3e-6     // default correlator width (s)
+#define DEF_CFG_FS     12e6     // default sampling rate (sps)
 #define WS_GUID        "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 #define FRM_PSD        1        // binary frame type: PSD
@@ -806,8 +807,8 @@ static void send_opts(sdr_web_t *web, web_cli_t *cli)
     jsn_esc(esc, sizeof(esc), web->cfg.fftw);
     n += snprintf(buff + n, sizeof(buff) - n, ",\"fftw\":\"%s\"", esc);
     jsn_esc(esc, sizeof(esc), web->cfg.opt);
-    snprintf(buff + n, sizeof(buff) - n, ",\"opt\":\"%s\",\"ena\":%d,"
-        "\"run\":%d}", esc, web->cfg_ena,
+    snprintf(buff + n, sizeof(buff) - n, ",\"opt\":\"%s\",\"fast_acq\":%d,"
+        "\"ena\":%d,\"run\":%d}", esc, web->cfg.fast_acq, web->cfg_ena,
         web->rcv && web->rcv->state ? 1 : 0);
     ws_send_text(cli, buff);
 }
@@ -842,9 +843,17 @@ static void send_cfg(sdr_web_t *web, web_cli_t *cli)
     n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"bits\":\"%s\","
         "\"toff\":%.3f,\"tscale\":%.3f,\"bus\":%d,\"port\":%d,", str,
         c->toff, c->tscale, c->bus, c->port);
+    for (int i = m = 0; i < SDR_MAX_RFCH; i++) {
+        m += snprintf(str + m, sizeof(str) - m, "%s%.3f", i ? "," : "",
+            c->lpf_bw[i]);
+    }
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"lpf\":\"%s\","
+        "\"fast_acq\":%d,\"array_sep\":%d,", str, c->fast_acq, c->array_sep);
     jsn_esc(esc, sizeof(esc), c->conf_file);
     n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"conf\":\"%s\","
-        "\"driver\":\"%s\",", esc, c->driver);
+        "\"conf_ena\":%d,\"driver\":\"%s\",", esc, c->conf_ena, c->driver);
+    jsn_esc(esc, sizeof(esc), c->dev_opt);
+    n += snprintf(buff + n, JSON_BUFF_SIZE - n, "\"dev_opt\":\"%s\",", esc);
     for (int i = m = 0; i < c->nsig && m < (int)sizeof(str) - 300; i++) {
         m += snprintf(str + m, sizeof(str) - m, "%s%s:%s", i ? " " : "",
             c->sig[i], c->prn[i]);
@@ -917,11 +926,17 @@ static int save_cfg(sdr_web_t *web)
     for (int i = 0; i < SDR_MAX_RFCH; i++) {
         fprintf(fp, "%s%d", i ? "," : " ", c->bits[i]);
     }
+    fprintf(fp, "\nlpf    =");
+    for (int i = 0; i < SDR_MAX_RFCH; i++) {
+        fprintf(fp, "%s%.3f", i ? "," : " ", c->lpf_bw[i]);
+    }
     fprintf(fp, "\ntoff   = %.3f\n", c->toff);
     fprintf(fp, "tscale = %.3f\n", c->tscale);
     fprintf(fp, "bus    = %d\n", c->bus);
     fprintf(fp, "port   = %d\n", c->port);
     fprintf(fp, "conf   = %s\n", c->conf_file);
+    fprintf(fp, "conf_ena = %d\n", c->conf_ena);
+    fprintf(fp, "dev_opt = %s\n", c->dev_opt);
     fprintf(fp, "driver = %s\n", c->driver);
     fprintf(fp, "sigs   =");
     for (int i = 0; i < c->nsig; i++) {
@@ -942,6 +957,8 @@ static int save_cfg(sdr_web_t *web)
     fprintf(fp, "\nrfch   = %s\n", c->rfch);
     fprintf(fp, "opt    = %s\n", c->opt);
     fprintf(fp, "fftw   = %s\n", c->fftw);
+    fprintf(fp, "fast_acq = %d\n", c->fast_acq);
+    fprintf(fp, "array_sep = %d\n", c->array_sep);
     for (int i = 0; i < N_OPT; i++) {
         fprintf(fp, "%-6s = %.6g\n", opt_names[i], vals[i]);
     }
@@ -975,10 +992,18 @@ static int load_cfg(sdr_web_t *web)
         else if (!strcmp(key, "bus"   )) c->bus = atoi(val);
         else if (!strcmp(key, "port"  )) c->port = atoi(val);
         else if (!strcmp(key, "conf"  )) snprintf(c->conf_file, sizeof(c->conf_file), "%s", val);
+        else if (!strcmp(key, "conf_ena")) c->conf_ena = atoi(val);
+        else if (!strcmp(key, "dev_opt")) snprintf(c->dev_opt, sizeof(c->dev_opt), "%s", val);
         else if (!strcmp(key, "driver")) snprintf(c->driver, sizeof(c->driver), "%s", val);
         else if (!strcmp(key, "rfch"  )) snprintf(c->rfch, sizeof(c->rfch), "%s", val);
         else if (!strcmp(key, "opt"   )) snprintf(c->opt, sizeof(c->opt), "%s", val);
         else if (!strcmp(key, "fftw"  )) snprintf(c->fftw, sizeof(c->fftw), "%s", val);
+        else if (!strcmp(key, "fast_acq" )) c->fast_acq = atoi(val) != 0;
+        else if (!strcmp(key, "array_sep")) c->array_sep = atoi(val) != 0;
+        else if (!strcmp(key, "lpf")) {
+            int n = parse_csv(val, vals, SDR_MAX_RFCH);
+            for (int i = 0; i < n; i++) c->lpf_bw[i] = CLIP(vals[i], 0.0, 100.0);
+        }
         else if (!strcmp(key, "fo")) {
             int n = parse_csv(val, vals, SDR_MAX_RFCH);
             for (int i = 0; i < n; i++) c->fo[i] = vals[i] * 1e6;
@@ -1047,7 +1072,14 @@ static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
 
     sdr_func_init(c->fftw); // reload FFTW wisdom (receiver is stopped)
     sdr_log_mask(c->log_mask, SDR_WEB_N_LOG);
-    snprintf(opt, sizeof(opt), "-RFCH %.1000s %.1000s", c->rfch, c->opt);
+    int n = snprintf(opt, sizeof(opt), "-RFCH %.500s %.500s %.500s%s%s",
+        c->rfch, c->opt, c->dev_opt, c->fast_acq ? " -FAST_SRCH" : "",
+        c->array_sep ? " -ARRAY" : "");
+    for (int i = 0, m = 0; i < SDR_MAX_RFCH; i++) { // digital LPF (two-sided)
+        if (c->lpf_bw[i] <= 0.0) continue;
+        n += snprintf(opt + n, sizeof(opt) - n, "%s%d:%.3f",
+            m++ ? "," : " -LPF=", i + 1, c->lpf_bw[i]);
+    }
 
     for (int i = 0; i < c->nsig; i++) {
         int nums[SDR_MAX_NCH];
@@ -1069,8 +1101,8 @@ static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
             c->fo[0], c->str_type, paths, opt);
     }
     else {
-        rcv = sdr_rcv_open_dev(sigs, prns, nch, c->bus, c->port, c->conf_file,
-            c->str_type, paths, opt);
+        rcv = sdr_rcv_open_dev(sigs, prns, nch, c->bus, c->port,
+            c->conf_ena ? c->conf_file : "", c->str_type, paths, opt);
     }
     if (rcv && c->nant > 0) {
         int ena[SDR_MAX_RFCH] = {0};
@@ -1078,6 +1110,17 @@ static sdr_rcv_t *cfg_open(sdr_web_cfg_t *c)
         sdr_rcv_array_ant_pos(rcv, (const double *)c->ant_pos, ena);
     }
     return rcv;
+}
+
+// start the receiver with the current configuration ---------------------------
+static int start_rcv(sdr_web_t *web)
+{
+    sdr_mutex_lock(&web->rcv_mtx);
+    if (web->rcv) sdr_rcv_close(web->rcv);
+    web->rcv = cfg_open(&web->cfg);
+    sdr_mutex_unlock(&web->rcv_mtx);
+    web->sel_ch = 0;
+    return web->rcv != NULL;
 }
 
 // send PSD binary frames (rfch = 0: all RF CHs) -------------------------------
@@ -1354,12 +1397,8 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
             send_ack(cli, cmd, 0, "\"msg\":\"receiver already run\"");
         }
         else {
-            sdr_mutex_lock(&web->rcv_mtx);
-            if (web->rcv) sdr_rcv_close(web->rcv);
-            web->rcv = cfg_open(&web->cfg);
-            sdr_mutex_unlock(&web->rcv_mtx);
-            web->sel_ch = 0;
-            send_ack(cli, cmd, web->rcv != NULL, web->rcv ? NULL :
+            int ok = start_rcv(web);
+            send_ack(cli, cmd, ok, ok ? NULL :
                 "\"msg\":\"receiver start error\"");
             bcast_hello(web);
         }
@@ -1391,6 +1430,8 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
             if (jsn_num(msg, "port", &val)) c->port = (int)val;
             jsn_str(msg, "file", c->file, sizeof(c->file));
             jsn_str(msg, "conf", c->conf_file, sizeof(c->conf_file));
+            jsn_str(msg, "dev_opt", c->dev_opt, sizeof(c->dev_opt));
+            if (jsn_num(msg, "conf_ena", &val)) c->conf_ena = val != 0.0;
             jsn_str(msg, "driver", c->driver, sizeof(c->driver));
             if (jsn_str(msg, "fo", str, sizeof(str))) { // MHz
                 int m = parse_csv(str, vals, SDR_MAX_RFCH);
@@ -1406,6 +1447,12 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
                 int m = parse_csv(str, vals, SDR_MAX_RFCH);
                 for (int i = 0; i < m; i++) {
                     c->bits[i] = (int)CLIP(vals[i], 2, 3);
+                }
+            }
+            if (jsn_str(msg, "lpf", str, sizeof(str))) { // MHz
+                int m = parse_csv(str, vals, SDR_MAX_RFCH);
+                for (int i = 0; i < m; i++) {
+                    c->lpf_bw[i] = CLIP(vals[i], 0.0, 100.0);
                 }
             }
             send_ack(cli, cmd, 1, NULL);
@@ -1433,6 +1480,9 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
         if (chk_cfg_edit(web, cli, cmd)) {
             jsn_str(msg, "fftw", web->cfg.fftw, sizeof(web->cfg.fftw));
             jsn_str(msg, "opt", web->cfg.opt, sizeof(web->cfg.opt));
+            if (jsn_num(msg, "fast_acq", &val)) {
+                web->cfg.fast_acq = val != 0.0;
+            }
             send_ack(cli, cmd, 1, NULL);
         }
     } else if (!strcmp(cmd, "opts_default")) {
@@ -1451,6 +1501,7 @@ static void proc_cmd(sdr_web_t *web, web_cli_t *cli, const char *msg)
                     c->str_type[i] = (int)CLIP(vals[i], 0, 4);
                 }
             }
+            if (jsn_num(msg, "array_sep", &val)) c->array_sep = val != 0.0;
             if (jsn_str(msg, "log_mask", str, sizeof(str))) {
                 int m = parse_csv(str, vals, SDR_WEB_N_LOG);
                 for (int i = 0; i < m; i++) {
@@ -1817,6 +1868,51 @@ void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg,
 }
 
 //------------------------------------------------------------------------------
+//  Set the default receiver configuration, as used on the first start without a
+//  settings file.
+//
+//  args:
+//      cfg       (O)  receiver configuration
+//
+//  returns:
+//      none
+//
+void sdr_web_init_cfg(sdr_web_cfg_t *cfg)
+{
+    if (!cfg) return;
+    memset(cfg, 0, sizeof(sdr_web_cfg_t));
+    cfg->fmt = SDR_FMT_INT8X2;
+    cfg->fs = DEF_CFG_FS;
+    for (int i = 0; i < SDR_MAX_RFCH; i++) {
+        cfg->IQ[i] = 2;
+        cfg->bits[i] = 2;
+    }
+    cfg->tscale = 1.0;
+    cfg->bus = cfg->port = -1;
+    for (int i = 0; i < SDR_WEB_N_LOG; i++) { // library defaults
+        cfg->log_mask[i] = !(i == 7 || i == 8);
+    }
+}
+
+//------------------------------------------------------------------------------
+//  Start the SDR receiver with the current configuration, as the Start command
+//  of the Web UI does. The current receiver, if any, is closed first.
+//
+//  args:
+//      web       (I)  Web UI server (NULL: no operation)
+//
+//  returns:
+//      status (1: started, 0: error or already running)
+//
+int sdr_web_start_rcv(sdr_web_t *web)
+{
+    if (!web || !web->cfg_ena || (web->rcv && web->rcv->state)) return 0;
+    int ok = start_rcv(web);
+    bcast_hello(web);
+    return ok;
+}
+
+//------------------------------------------------------------------------------
 //  Restore the receiver configuration and the system options from the settings
 //  file set by sdr_web_set_cfg().
 //
@@ -1866,26 +1962,4 @@ sdr_rcv_t *sdr_web_stop(sdr_web_t *web)
     sdr_rcv_t *rcv = web->rcv;
     sdr_free(web);
     return rcv;
-}
-
-//------------------------------------------------------------------------------
-//  Get the current SDR receiver of the Web UI server with the receiver
-//  pointer locked. Call sdr_web_rcv_unlock() after use.
-//
-//  args:
-//      web       (I)  Web UI server (NULL: no operation)
-//
-//  returns:
-//      current SDR receiver (NULL: none)
-//
-sdr_rcv_t *sdr_web_rcv_lock(sdr_web_t *web)
-{
-    if (!web) return NULL;
-    sdr_mutex_lock(&web->rcv_mtx);
-    return web->rcv;
-}
-
-void sdr_web_rcv_unlock(sdr_web_t *web)
-{
-    if (web) sdr_mutex_unlock(&web->rcv_mtx);
 }

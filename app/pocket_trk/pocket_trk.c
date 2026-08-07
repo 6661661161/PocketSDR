@@ -26,10 +26,8 @@
 //  2025-03-16  1.10 add -opt option, delete -w option
 //  2026-07-24  1.11 support up to 8 output streams by repeating -nmea, -rtcm,
 //                   -log and -raw options
-//  2026-08-01  1.12 add -web and -html options for Web UI
-//  2026-08-02  1.13 add -arch and -geom options for antenna array
-//                   support receiver lifecycle control by the Web UI
-//                   add -ini option, start stopped without -sig
+//  2026-08-02  1.12 add -arch and -geom options for antenna array
+//  2026-08-07  1.13 close the SDR device on console close for Windows
 //
 #include <math.h>
 #include <signal.h>
@@ -40,10 +38,10 @@
 #define PROG_NAME "pocket_trk"  // program name
 #define TRACE_LEVEL 3           // debug trace level
 #define FFTW_WISDOM "../python/fftw_wisdom.txt"
-#define INI_FILE   "pocket_trk.ini" // Web UI settings file
 #define NUM_COL    110          // number of channel status columns
 #define MAX_ROW    64           // max number of channel status rows
 #define MIN_LOCK   2.0          // min lock time for channel status (s)
+#define EXIT_WAIT  400          // max wait cycles (10 ms) for device close
 #define ESC_COL    "\033[34m"   // ANSI escape color blue
 #define ESC_RES    "\033[0m"    // ANSI escape reset
 #define ESC_VCUR   "\033[?25h"  // ANSI escape show cursor
@@ -58,8 +56,7 @@ static const char *usage_text[] = {
     "       [-toff toff] [-ti tint] [-p bus,[,port] [-c conf_file]",
     "       [-driver name] [-gain gain] [-bw bw] [-fd dopp]",
     "       [-log path] [-nmea path] [-rtcm path] [-raw path] ... [-opt file]",
-    "       [-arch nch] [-geom file]",
-    "       [-web [addr:]port] [-html dir] [-ini file] [file]",
+    "       [-arch nch] [-geom file] [file]",
     NULL
 };
 
@@ -120,8 +117,9 @@ static void add_str(int *types, const char **paths, int type, const char *path)
     exit(-1);
 }
 
-// interrupt flag --------------------------------------------------------------
+// interrupt and shutdown completion flags -------------------------------------
 static volatile uint8_t intr = 0;
+static volatile uint8_t done = 0;
 
 // signal handler --------------------------------------------------------------
 static void sig_func(int sig)
@@ -129,6 +127,22 @@ static void sig_func(int sig)
     intr = 1;
     signal(sig, sig_func);
 }
+
+#ifdef WIN32
+
+// console control handler -----------------------------------------------------
+//   The C runtime raises SIGINT only for Ctrl-C and Ctrl-Break. Console close,
+//   logoff and shutdown terminate the process as soon as the handler returns,
+//   so wait here until the main thread has closed the SDR device.
+static BOOL WINAPI ctrl_func(DWORD type)
+{
+    intr = 1;
+    for (int i = 0; i < EXIT_WAIT && !done; i++) {
+        sdr_sleep_msec(10);
+    }
+    return TRUE;
+}
+#endif // WIN32
 
 // print version ---------------------------------------------------------------
 static void print_ver(void)
@@ -198,15 +212,8 @@ int main(int argc, char **argv)
     const char *debug_file = "";
     const char *driver = "";
     double gain = 0.0, bw = 0.0, max_dop = 0.0;
-    char rfch_opt[2048] = "-RFCH";
-    sdr_web_t *web = NULL;
-    char web_addr[64] = "";
-    int web_port = 0;
-    const char *html_dir = "", *geom_file = "";
-    const char *ini_file = INI_FILE;
-    sdr_web_cfg_t cfg;
-
-    memset(&cfg, 0, sizeof(cfg));
+    char rfch_opt[1024] = "-RFCH";
+    const char *geom_file = "";
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-sig") && i + 1 < argc) {
@@ -218,15 +225,10 @@ int main(int argc, char **argv)
                 sigs[nch] = sig;
                 prns[nch++] = nums[j];
             }
-            if (cfg.nsig < SDR_WEB_MAX_SIG) { // for Web UI configuration
-                snprintf(cfg.sig[cfg.nsig], sizeof(cfg.sig[0]), "%s", sig);
-                snprintf(cfg.prn[cfg.nsig], sizeof(cfg.prn[0]), "%s", argv[i]);
-                cfg.nsig++;
-            }
         } else if (!strcmp(argv[i], "-rfch") && i + 1 < argc) {
-            size_t len = strlen(cfg.rfch);
-            snprintf(cfg.rfch + len, sizeof(cfg.rfch) - len, "%s%s:%s",
-                len ? " " : "", sig, argv[++i]);
+            size_t len = strlen(rfch_opt);
+            snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " %s:%s", sig,
+                argv[++i]);
         } else if (!strcmp(argv[i], "-toff") && i + 1 < argc) {
             toff = atof(argv[++i]);
         } else if (!strcmp(argv[i], "-tscale") && i + 1 < argc) {
@@ -286,24 +288,11 @@ int main(int argc, char **argv)
         } else if (!strcmp(argv[i], "-fd") && i + 1 < argc) {
             max_dop = atof(argv[++i]);
         } else if (!strcmp(argv[i], "-arch") && i + 1 < argc) {
-            size_t len = strlen(cfg.opt);
-            snprintf(cfg.opt + len, sizeof(cfg.opt) - len, " -ARCH=%d",
+            size_t len = strlen(rfch_opt);
+            snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -ARCH=%d",
                 atoi(argv[++i]));
         } else if (!strcmp(argv[i], "-geom") && i + 1 < argc) {
             geom_file = argv[++i];
-        } else if (!strcmp(argv[i], "-web") && i + 1 < argc) {
-            const char *str = argv[++i], *p = strrchr(str, ':');
-            if (p) {
-                snprintf(web_addr, sizeof(web_addr), "%.*s", (int)(p - str),
-                    str);
-                web_port = atoi(p + 1);
-            } else {
-                web_port = atoi(str);
-            }
-        } else if (!strcmp(argv[i], "-html") && i + 1 < argc) {
-            html_dir = argv[++i];
-        } else if (!strcmp(argv[i], "-ini") && i + 1 < argc) {
-            ini_file = argv[++i];
         } else if (!strcmp(argv[i], "-v")) {
             print_ver();
         } else if (argv[i][0] == '-') {
@@ -326,111 +315,62 @@ int main(int argc, char **argv)
     
     signal(SIGTERM, sig_func);
     signal(SIGINT, sig_func);
-#ifndef WIN32
+#ifdef WIN32
+    SetConsoleCtrlHandler(ctrl_func, TRUE); // console close, logoff, shutdown
+#else
     signal(SIGPIPE, SIG_IGN);
 #endif
     uint32_t tt = sdr_get_tick();
 
     if (gain > 0.0) {
-        size_t len = strlen(cfg.opt);
-        snprintf(cfg.opt + len, sizeof(cfg.opt) - len, " -GAIN=%.1f", gain);
+        size_t len = strlen(rfch_opt);
+        snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -GAIN=%.1f", gain);
     }
     if (bw > 0.0) {
-        size_t len = strlen(cfg.opt);
-        snprintf(cfg.opt + len, sizeof(cfg.opt) - len, " -BW=%.3f", bw);
+        size_t len = strlen(rfch_opt);
+        snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -BW=%.3f", bw);
     }
-    snprintf(rfch_opt, sizeof(rfch_opt), "-RFCH %s %s", cfg.rfch, cfg.opt);
-    rcv = NULL;
-    if (nch > 0) { // without -sig, start with the receiver stopped
-        if (*file) {
-            rcv = sdr_rcv_open_file(sigs, prns, nch, fmt, fs, fo, IQ, bits,
-                toff, tscale, file, types, paths, rfch_opt);
-        } else if (*driver) {
-            rcv = sdr_rcv_open_sdev(sigs, prns, nch, driver, fmt, fs, fo[0],
-                types, paths, rfch_opt);
-        } else {
-            rcv = sdr_rcv_open_dev(sigs, prns, nch, bus, port, conf_file,
-                types, paths, rfch_opt);
-        }
+    if (*file) {
+        rcv = sdr_rcv_open_file(sigs, prns, nch, fmt, fs, fo, IQ, bits, toff,
+            tscale, file, types, paths, rfch_opt);
+    } else if (*driver) {
+        rcv = sdr_rcv_open_sdev(sigs, prns, nch, driver, fmt, fs, fo[0], types,
+            paths, rfch_opt);
+    } else {
+        rcv = sdr_rcv_open_dev(sigs, prns, nch, bus, port, conf_file, types,
+            paths, rfch_opt);
     }
-    if (!rcv && web_port <= 0) {
+    if (!rcv) {
         return -1;
     }
     if (*geom_file) { // array element positions
+        double ant_pos[SDR_MAX_RFCH*3] = {0};
         int ant_ena[SDR_MAX_RFCH] = {0};
-        cfg.nant = sdr_array_geom_load(geom_file, (double *)cfg.ant_pos,
-            SDR_MAX_RFCH);
-        for (int i = 0; i < cfg.nant; i++) ant_ena[i] = 1;
-        if (cfg.nant <= 0 || (rcv && !sdr_rcv_array_ant_pos(rcv,
-            (const double *)cfg.ant_pos, ant_ena))) {
+        int nant = sdr_array_geom_load(geom_file, ant_pos, SDR_MAX_RFCH);
+        for (int i = 0; i < nant; i++) ant_ena[i] = 1;
+        if (nant <= 0 || !sdr_rcv_array_ant_pos(rcv, ant_pos, ant_ena)) {
             fprintf(stderr, "array geometry load error: %s\n", geom_file);
-        }
-    }
-    if (web_port > 0) {
-        if ((web = sdr_web_start(rcv, web_addr, web_port, html_dir))) {
-            cfg.inp = *file ? 1 : (*driver ? 2 : 0);
-            snprintf(cfg.file, sizeof(cfg.file), "%s", file);
-            cfg.fmt = fmt;
-            cfg.fs = fs;
-            memcpy(cfg.fo, fo, sizeof(cfg.fo));
-            memcpy(cfg.IQ, IQ, sizeof(cfg.IQ));
-            memcpy(cfg.bits, bits, sizeof(cfg.bits));
-            cfg.toff = toff;
-            cfg.tscale = tscale;
-            cfg.bus = bus;
-            cfg.port = port;
-            snprintf(cfg.conf_file, sizeof(cfg.conf_file), "%s", conf_file);
-            snprintf(cfg.driver, sizeof(cfg.driver), "%s", driver);
-            memcpy(cfg.str_type, types, sizeof(cfg.str_type));
-            for (int i = 0; i < SDR_MAX_STR; i++) {
-                snprintf(cfg.str_path[i], sizeof(cfg.str_path[0]), "%s",
-                    paths[i]);
-            }
-            snprintf(cfg.fftw, sizeof(cfg.fftw), "%s", fftw_wisdom);
-            for (int i = 0; i < SDR_WEB_N_LOG; i++) { // library defaults
-                cfg.log_mask[i] = !(i == 7 || i == 8);
-            }
-            sdr_web_set_cfg(web, &cfg, ini_file);
-            if (nch <= 0) { // restore the settings of the last session
-                sdr_web_load_cfg(web);
-            }
-            printf("Web UI: http://%s:%d/\n",
-                *web_addr ? web_addr : "127.0.0.1", web_port);
-        } else {
-            fprintf(stderr, "web server start error port=%d\n", web_port);
-            if (!rcv) return -1;
         }
     }
     if (tint > 0.0) {
         printf("%s", ESC_HCUR);
     }
-    if (web) { // run until interrupt; receiver lifecycle by the Web UI
-        while (!intr) {
-            sdr_rcv_t *cur = sdr_web_rcv_lock(web);
-            if (tint > 0.0) {
-                nrow = print_rcv_stat(cur, nrow, max_row);
-            }
-            sdr_web_rcv_unlock(web);
-            sdr_sleep_msec(tint > 0.0 ? (int)(tint * 1000) : 100);
+    while (!intr && rcv->state) { // wait for interrupt or file end
+        if (tint > 0.0) {
+            nrow = print_rcv_stat(rcv, nrow, max_row);
         }
-        rcv = sdr_web_stop(web);
-    } else {
-        while (!intr && rcv->state) { // wait for interrupt or file end
-            if (tint > 0.0) {
-                nrow = print_rcv_stat(rcv, nrow, max_row);
-            }
-            sdr_sleep_msec(tint > 0.0 ? (int)(tint * 1000) : 100);
-        }
+        sdr_sleep_msec(tint > 0.0 ? (int)(tint * 1000) : 100);
     }
     if (tint > 0.0) {
         print_rcv_stat(rcv, nrow, max_row);
         printf("  TIME(s) = %.3f\n", (sdr_get_tick() - tt) * 1e-3);
         printf("%s", ESC_VCUR);
     }
-    if (rcv) sdr_rcv_close(rcv);
+    sdr_rcv_close(rcv);
     
     if (*debug_file) {
         traceclose();
     }
+    done = 1; // release the console control handler
     return 0;
 }

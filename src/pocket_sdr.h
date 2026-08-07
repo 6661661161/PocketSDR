@@ -349,8 +349,13 @@ typedef struct {                // Web UI receiver configuration type
     int IQ[SDR_MAX_RFCH];       // sampling types (1:I,2:IQ)
     int bits[SDR_MAX_RFCH];     // sample bits (2 or 3)
     double toff, tscale;        // replay time offset (s) and time scale
+    double lpf_bw[SDR_MAX_RFCH]; // LPF bandwidths (MHz, 0: disabled)
+    int fast_acq;               // fast acquisition mode (-FAST_SRCH)
+    int array_sep;              // RF CH separation as receivers (-ARRAY)
     int bus, port;              // USB bus and port numbers (-1:any)
+    int conf_ena;               // apply the device configuration file
     char conf_file[1024];       // device configuration file
+    char dev_opt[1024];         // RF frontend device options
     char driver[32];            // SoapySDR driver
     int nsig;                   // number of signal entries
     char sig[SDR_WEB_MAX_SIG][16]; // signal IDs
@@ -647,12 +652,12 @@ int sdr_rcv_set_filt(sdr_rcv_t *rcv, int ch, double bw, double freq, int order);
 // sdr_web.c
 sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
     const char *html_dir);
+void sdr_web_init_cfg(sdr_web_cfg_t *cfg);
 void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg,
     const char *file);
 int sdr_web_load_cfg(sdr_web_t *web);
+int sdr_web_start_rcv(sdr_web_t *web);
 sdr_rcv_t *sdr_web_stop(sdr_web_t *web);
-sdr_rcv_t *sdr_web_rcv_lock(sdr_web_t *web);
-void sdr_web_rcv_unlock(sdr_web_t *web);
 
 #ifdef __cplusplus
 }
