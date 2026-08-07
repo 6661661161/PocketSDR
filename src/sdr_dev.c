@@ -19,6 +19,7 @@
 //                   sdr_dev_get_gain()
 //  2024-12-30  1.8  add API sdr_dev_get_filt(), sdr_dev_set_filt()
 //  2026-07-04  1.9  fix display corruption by async scheduling error message
+//  2026-08-07  1.10 recover a FE left streaming by a killed session
 //
 #include "pocket_sdr.h"
 #ifdef WIN32
@@ -30,6 +31,11 @@
 #define BUFF_SIZE     (SDR_SIZE_UBUFF * SDR_MAX_UBUFF)
 #define TO_TRANSFER   3000    // USB transfer timeout (ms)
 #define TIMER_RES     1       // timer resolution for Windows (ms)
+#define DEV_STOP_MS   50      // settle time after bulk transfer stop (ms)
+#define DEV_RESET_MS  1500    // wait for re-enumeration after USB reset (ms)
+
+// bulk transfer status of FE 4CH/8CH in the device status ---------------------
+#define BULK_ACT(data) (((data)[3] >> 4) & 1)
 
 // read MAX2771 status ---------------------------------------------------------
 static int read_MAX2771_stat(sdr_dev_t *dev, int ch, double fx, double *fs,
@@ -236,6 +242,39 @@ static void *event_handler(void *arg)
 
 #endif // WIN32
 
+// recover a SDR device left streaming by a previous session -------------------
+//   A session killed without sdr_dev_stop() leaves the bulk transfer running.
+//   The FE 4CH/8CH reports it in the same status bit that sdr_dev_get_info()
+//   reads as the device type, so the FE is then taken for a Spider SDR, and its
+//   DMA channel stays wedged, which VR_STOP alone does not clear. Only a USB
+//   reset recovers it (the vendor request VR_RESET does not work). The bit is
+//   the device type of a Spider SDR, which VR_STOP leaves untouched.
+static sdr_usb_t *recover_dev(sdr_usb_t *usb, int bus, int port,
+    const uint16_t *vid, const uint16_t *pid)
+{
+    uint8_t data[6];
+
+    if (!sdr_usb_req(usb, 0, SDR_VR_STAT, 0, data, 6) || !BULK_ACT(data)) {
+        return usb;
+    }
+    sdr_usb_req(usb, 0, SDR_VR_STOP, 0, NULL, 0);
+    sdr_sleep_msec(DEV_STOP_MS);
+
+    if (!sdr_usb_req(usb, 0, SDR_VR_STAT, 0, data, 6) || BULK_ACT(data)) {
+        return usb; // not a bulk transfer status - leave the device alone
+    }
+    fprintf(stderr, "SDR device left streaming by the previous session - "
+        "resetting.\n");
+    sdr_usb_reset(usb);
+    sdr_usb_close(usb);
+    sdr_sleep_msec(DEV_RESET_MS);
+
+    if (!(usb = sdr_usb_open(bus, port, vid, pid, 2))) {
+        fprintf(stderr, "SDR device reset error.\n");
+    }
+    return usb;
+}
+
 //------------------------------------------------------------------------------
 //  Open a SDR device.
 //
@@ -255,6 +294,10 @@ sdr_dev_t *sdr_dev_open(int bus, int port)
     if (!(dev->usb = sdr_usb_open(bus, port, vid, pid, 2))) {
         fprintf(stderr, "No device found. BUS=%d PORT=%d VID=%04X PID=%04X,%04X\n",
             bus, port, SDR_DEV_VID, SDR_DEV_PID1, SDR_DEV_PID2);
+        sdr_free(dev);
+        return NULL;
+    }
+    if (!(dev->usb = recover_dev(dev->usb, bus, port, vid, pid))) {
         sdr_free(dev);
         return NULL;
     }

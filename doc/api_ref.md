@@ -1,7 +1,7 @@
 # Pocket SDR C Library API Reference
 
 <div style="text-align: right;">
-<strong>ver.0.19  2026-07-20</strong>
+<strong>ver.0.19  2026-08-07</strong>
 </div>
 
 ---
@@ -26,6 +26,7 @@
 - [sdr_pvt.c - Position/Velocity/Time Functions](#sec-pvt)
 - [sdr_array.c - Antenna Array Functions](#sec-array)
 - [sdr_rcv.c - SDR Receiver Functions](#sec-rcv)
+- [sdr_web.c - Web UI Server Functions](#sec-web)
 
 
 <div class="pagebreak"></div>
@@ -226,6 +227,14 @@ This API reference describes the **Pocket SDR** C library (`libsdr`). The librar
   - Antenna array state: frequency index, RF-CH count (`nrfch`), per-element enable flags and body-frame positions, calibration run flag, calibration mode (`SDR_CALIB_*`), epoch count, EKF state `x[3+SDR_MAX_RFCH]` = `{roll, pitch, yaw, bias_0..bias_{nrfch-1}}` (with `bias_0` held at 0 as the reference tie-down) and covariance `P`, RMS. Self-contained — no back-pointer to receiver. The number of array channels (`narch`) and per-array-CH beam states (`arch[]`) live in `sdr_rcv_t`.
 <br><br>
 
+- `sdr_web_cfg_t`
+  - Receiver configuration held by the Web UI server and persisted in its settings file: input source (`inp` 0 = Pocket SDR FE, 1 = IF data, 2 = SoapySDR), IF data path / format / sampling rate, per-RF-CH LO frequencies, sampling types, sample bits and digital LPF bandwidths, replay time offset and scale, fast acquisition and RF CH separation flags, USB bus/port, device configuration file with its enable flag, RF frontend device options, SoapySDR driver, signal entries (`sig[]`, `prn[]`), output stream types and paths, receiver log type mask, RF CH assignments, receiver options, FFTW wisdom path and array element positions.
+<br><br>
+
+- `sdr_web_t` (opaque)
+  - Web UI server state: listening socket, client table with per-client topic subscriptions, receiver pointer and its mutex, receiver log ring, and the configuration (`sdr_web_cfg_t`) with its settings file path.
+<br><br>
+
 - `sdr_rcv_t`
   - SDR receiver state: run flag, device type/pointer, IF data format / sampling rate / buffer length / channel counts (`nch`, `nrfch`, `narch`), current search channel, IF cycle count, per-RF-CH config (`rfch[]`), per-array-CH beam state (`arch[]`), per-CH IF buffers (RF + array), channel threads, optional `sdr_array_t`, `sdr_pvt_t`, IF data statistics, output streams `strs[SDR_MAX_STR]` with per-slot types `str_type[SDR_MAX_STR]` (`SDR_STR_???`), receiver start time (UTC), file replay scale, options string, fast-acquisition flag, IF data thread, and mutex.
 <br><br>
@@ -360,6 +369,12 @@ Low-level USB transport for Pocket SDR FE devices. Wraps Cypress CyAPI (Windows)
 - **Description**: Close USB device.
 <br><br>
 
+**`int sdr_usb_reset(sdr_usb_t *usb)`**
+<br>
+- **Description**: Reset the USB device (CyAPI `Reset()` / `libusb_reset_device()`). The device re-enumerates, so it has to be closed and opened again after this call.
+- **Return**: 1 on success, 0 on error
+<br><br>
+
 **`int sdr_usb_req(sdr_usb_t *usb, int mode, uint8_t req, uint16_t val, uint8_t *data, int size)`**
 <br>
 - **Description**: Issue a vendor-specific control transfer.
@@ -388,7 +403,7 @@ Higher-level USB front-end abstraction with bulk IF data transfer and optional M
 
 **`sdr_dev_t *sdr_dev_open(int bus, int port)`**
 <br>
-- **Description**: Open and initialize a Pocket SDR FE device.
+- **Description**: Open and initialize a Pocket SDR FE device. A session killed without `sdr_dev_stop()` leaves the bulk transfer running; the FE 4CH/8CH reports it in the same status bit that `sdr_dev_get_info()` reads as the device type, so the FE would be taken for a Spider SDR. The open detects the state, resets the USB device and reopens it.
 - **Arguments**:
   - bus: USB bus (-1 for any)
   - port: USB port (-1 for any)
@@ -1538,4 +1553,65 @@ Top-level receiver lifecycle and state queries. A receiver wraps a front-end (US
 **`void sdr_rcv_array_calib(sdr_rcv_t *rcv, const obsd_t *obs, int nobs, const nav_t *nav, const double *rr)`**
 <br>
 - **Description**: Per-epoch driver invoked by `sdr_pvt_udsol()` after each PVT update. Holds `rcv->mtx` while calling `sdr_array_calib()`.
+<br><br>
+
+
+<div class="pagebreak"></div>
+<a id="sec-web"></a>
+
+## sdr_web.c - Web UI Server Functions
+
+---
+
+### Overview
+HTTP and WebSocket server for the Web UI of the `pocket_web` AP, implemented directly on BSD sockets / winsock2 with no external dependency (own SHA-1 and Base64 for the WebSocket handshake). A single server thread runs a `select()` loop on a 10 ms tick that also drives the topic scheduler, so no thread is created per client.
+
+Static Web UI files are served over HTTP from the document root; commands and monitor data are exchanged over one WebSocket per client. Each client subscribes to topics with its own cycle, and the server pushes the latest data only (no queueing) as JSON text frames or, for the PSD, correlator and correlator history, as little-endian binary frames. See `doc/design_web_ui.md` for the wire protocol.
+
+The server also owns the receiver lifecycle. It keeps a `sdr_web_cfg_t` configuration, creates and closes the receiver on the Start / Stop commands, and saves the configuration and the system options to the settings file when the receiver stops and when the server stops.
+<br>
+
+### API Functions
+
+**`sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port, const char *html_dir)`**
+<br>
+- **Description**: Start the Web UI server and its server thread.
+- **Arguments**:
+  - rcv: SDR receiver to monitor (NULL: start with no receiver)
+  - addr: bind address ("": 127.0.0.1, loopback only)
+  - port: TCP port
+  - html_dir: document root of the Web UI files ("": `<exe_dir>/../html`)
+- **Return**: Web UI server (NULL: error)
+<br><br>
+
+**`void sdr_web_init_cfg(sdr_web_cfg_t *cfg)`**
+<br>
+- **Description**: Set the default receiver configuration, as used on the first start without a settings file.
+<br><br>
+
+**`void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg, const char *file)`**
+<br>
+- **Description**: Set the receiver configuration and enable the receiver lifecycle control (Start / Stop and the configuration commands) on the Web UI. Without this call the server is monitor-only.
+- **Arguments**:
+  - web: Web UI server (NULL: no operation)
+  - cfg: receiver configuration
+  - file: settings file to save and restore ("": no save)
+<br><br>
+
+**`int sdr_web_load_cfg(sdr_web_t *web)`**
+<br>
+- **Description**: Restore the receiver configuration and the system options from the settings file set by `sdr_web_set_cfg()`.
+- **Return**: 1 if restored, 0 if there is no settings file
+<br><br>
+
+**`int sdr_web_start_rcv(sdr_web_t *web)`**
+<br>
+- **Description**: Start the SDR receiver with the current configuration, as the Start command of the Web UI does. The current receiver, if any, is closed first.
+- **Return**: 1 if started, 0 on error or if the receiver is already running
+<br><br>
+
+**`sdr_rcv_t *sdr_web_stop(sdr_web_t *web)`**
+<br>
+- **Description**: Stop the Web UI server, save the settings and free all resources. The current receiver is not closed; it is returned to the caller to be closed with `sdr_rcv_close()`.
+- **Return**: current SDR receiver (NULL: none)
 <br><br>

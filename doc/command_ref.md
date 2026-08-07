@@ -1,7 +1,7 @@
 # Pocket SDR Command Reference
 
 <div style="text-align: right;">
-<strong>ver.0.19  2026-07-20</strong>
+<strong>ver.0.19  2026-08-07</strong>
 </div>
 
 ---
@@ -14,6 +14,7 @@
 - [pocket_dump](#sec-pocket_dump) - Capture digital IF data from Pocket SDR FE
 - [pocket_acq](#sec-pocket_acq) - GNSS signal acquisition from IF data
 - [pocket_trk](#sec-pocket_trk) - GNSS signal tracking, nav decoding, and PVT generation
+- [pocket_web](#sec-pocket_web) - GNSS receiver server with Web UI
 - [pocket_snap](#sec-pocket_snap) - Snapshot positioning from IF data
 - [pocket_calib](#sec-pocket_calib) - Antenna array attitude and per-CH bias calibration
 - [convbin](#sec-convbin) - Convert receiver logs / RTCM streams to RINEX
@@ -306,6 +307,7 @@ pocket_trk [-sig sig -prn prn[,...] [-rfch ch[,...]] ...]
            [-p bus[,port]] [-c conf_file]
            [-driver name] [-gain gain] [-bw bw] [-fd dopp]
            [-log path] [-nmea path] [-rtcm path] [-raw path] ...
+           [-arch nch] [-geom file]
            [-h height] [-opt file] [-debug file] [-v] [file]
 ```
 
@@ -361,6 +363,12 @@ The input can be a local file, a TCP stream, a Pocket SDR FE device, or a SoapyS
   - Output stream path for raw observations and navigation data as RTCM3.3 messages. Same path syntax and repeatability as `-log`.
 - `-raw path`
   - Output stream path for raw IF data. Same path syntax and repeatability as `-log`. Enabled only for Pocket SDR FE or SoapySDR device inputs.
+- `-arch nch`
+  - Number of antenna array channels. Array CHs are appended after the RF
+    CHs. [`0`]
+- `-geom file`
+  - Array element positions file (body-frame, `pocket_sdr.py` array
+    geometry format) applied at startup. [none]
 - `-h height`
   - Console height (rows) for the runtime status display. [`64`]
 - `-opt file`
@@ -411,6 +419,61 @@ updates if synchronization is lost or `b_pll * K * T >= 0.4`, where
 `K = max(1, round(t_coh / T))`.
 
 All numeric keys other than `fftw_wisdom` are passed to `sdr_rcv_setopt()`.
+
+
+<div class="pagebreak"></div>
+<a id="sec-pocket_web"></a>
+
+## pocket_web - GNSS receiver server with Web UI
+
+---
+<br>
+
+### Synopsis
+
+```
+pocket_web [-web [addr:]port] [-html dir] [-ini file] [-start]
+           [-debug file] [-v]
+```
+
+### Description
+
+Run a GNSS receiver as a server controlled from a Web UI in a browser. Static Web UI files are served over HTTP, and commands and monitor data are exchanged over WebSocket (see `doc/design_web_ui.md`). The receiver itself provides the same signal tracking, navigation data decoding, and PVT generation as `pocket_trk`.
+
+The AP does not start the receiver by itself unless `-start` is given. The input source, output streams, signal selection, and system options are all set from the Web UI, and the receiver is started and stopped from there. The settings are restored from `-ini file` at startup and saved when the receiver is stopped and when the AP exits, so a session continues where the previous one left off. The AP prints no runtime status of its own; the receiver is monitored from the Web UI.
+
+### Options ([]: default)
+
+- `-web [addr:]port`
+  - TCP port of the Web UI server, and optionally the bind address. The
+    address defaults to `127.0.0.1` (loopback only); specify `0.0.0.0:port`
+    to accept LAN clients. The interface is unauthenticated - do not expose
+    it to untrusted networks. Required.
+- `-html dir`
+  - Document root of the Web UI files. [`<exe_dir>/../html`]
+- `-ini file`
+  - Settings file for the receiver configuration and the system options.
+    [`pocket_web.ini`]
+- `-start`
+  - Start the receiver at startup with the restored settings, as the Start
+    command of the Web UI does. On error the AP keeps running so that the
+    settings can be fixed and the receiver started from the Web UI.
+    [start stopped]
+- `-debug file`
+  - Enable RTKLIB trace output to the given file (trace level 3).
+- `-v`
+  - Print the version and exit.
+
+### Example
+
+```
+pocket_web -web 0.0.0.0:8080
+```
+
+`run_sdr.sh` in the top directory starts and stops the server. On MSYS2 it
+stops it with SIGQUIT, which reaches a native Windows process as
+CTRL_BREAK_EVENT; a plain `kill` is `TerminateProcess()` and would leave the
+RF frontend streaming, which needs a USB reset to recover.
 
 
 <div class="pagebreak"></div>

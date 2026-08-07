@@ -26,6 +26,8 @@
 //  2025-03-16  1.10 add -opt option, delete -w option
 //  2026-07-24  1.11 support up to 8 output streams by repeating -nmea, -rtcm,
 //                   -log and -raw options
+//  2026-08-02  1.12 add -arch and -geom options for antenna array
+//  2026-08-07  1.13 close the SDR device on console close for Windows
 //
 #include <math.h>
 #include <signal.h>
@@ -39,6 +41,7 @@
 #define NUM_COL    110          // number of channel status columns
 #define MAX_ROW    64           // max number of channel status rows
 #define MIN_LOCK   2.0          // min lock time for channel status (s)
+#define EXIT_WAIT  400          // max wait cycles (10 ms) for device close
 #define ESC_COL    "\033[34m"   // ANSI escape color blue
 #define ESC_RES    "\033[0m"    // ANSI escape reset
 #define ESC_VCUR   "\033[?25h"  // ANSI escape show cursor
@@ -53,7 +56,7 @@ static const char *usage_text[] = {
     "       [-toff toff] [-ti tint] [-p bus,[,port] [-c conf_file]",
     "       [-driver name] [-gain gain] [-bw bw] [-fd dopp]",
     "       [-log path] [-nmea path] [-rtcm path] [-raw path] ... [-opt file]",
-    "       [file]",
+    "       [-arch nch] [-geom file] [file]",
     NULL
 };
 
@@ -114,8 +117,9 @@ static void add_str(int *types, const char **paths, int type, const char *path)
     exit(-1);
 }
 
-// interrupt flag --------------------------------------------------------------
+// interrupt and shutdown completion flags -------------------------------------
 static volatile uint8_t intr = 0;
+static volatile uint8_t done = 0;
 
 // signal handler --------------------------------------------------------------
 static void sig_func(int sig)
@@ -123,6 +127,22 @@ static void sig_func(int sig)
     intr = 1;
     signal(sig, sig_func);
 }
+
+#ifdef WIN32
+
+// console control handler -----------------------------------------------------
+//   The C runtime raises SIGINT only for Ctrl-C and Ctrl-Break. Console close,
+//   logoff and shutdown terminate the process as soon as the handler returns,
+//   so wait here until the main thread has closed the SDR device.
+static BOOL WINAPI ctrl_func(DWORD type)
+{
+    intr = 1;
+    for (int i = 0; i < EXIT_WAIT && !done; i++) {
+        sdr_sleep_msec(10);
+    }
+    return TRUE;
+}
+#endif // WIN32
 
 // print version ---------------------------------------------------------------
 static void print_ver(void)
@@ -193,7 +213,8 @@ int main(int argc, char **argv)
     const char *driver = "";
     double gain = 0.0, bw = 0.0, max_dop = 0.0;
     char rfch_opt[1024] = "-RFCH";
-    
+    const char *geom_file = "";
+
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-sig") && i + 1 < argc) {
             sig = argv[++i];
@@ -266,6 +287,12 @@ int main(int argc, char **argv)
             bw = atof(argv[++i]);
         } else if (!strcmp(argv[i], "-fd") && i + 1 < argc) {
             max_dop = atof(argv[++i]);
+        } else if (!strcmp(argv[i], "-arch") && i + 1 < argc) {
+            size_t len = strlen(rfch_opt);
+            snprintf(rfch_opt + len, sizeof(rfch_opt) - len, " -ARCH=%d",
+                atoi(argv[++i]));
+        } else if (!strcmp(argv[i], "-geom") && i + 1 < argc) {
+            geom_file = argv[++i];
         } else if (!strcmp(argv[i], "-v")) {
             print_ver();
         } else if (argv[i][0] == '-') {
@@ -288,7 +315,9 @@ int main(int argc, char **argv)
     
     signal(SIGTERM, sig_func);
     signal(SIGINT, sig_func);
-#ifndef WIN32
+#ifdef WIN32
+    SetConsoleCtrlHandler(ctrl_func, TRUE); // console close, logoff, shutdown
+#else
     signal(SIGPIPE, SIG_IGN);
 #endif
     uint32_t tt = sdr_get_tick();
@@ -314,6 +343,15 @@ int main(int argc, char **argv)
     if (!rcv) {
         return -1;
     }
+    if (*geom_file) { // array element positions
+        double ant_pos[SDR_MAX_RFCH*3] = {0};
+        int ant_ena[SDR_MAX_RFCH] = {0};
+        int nant = sdr_array_geom_load(geom_file, ant_pos, SDR_MAX_RFCH);
+        for (int i = 0; i < nant; i++) ant_ena[i] = 1;
+        if (nant <= 0 || !sdr_rcv_array_ant_pos(rcv, ant_pos, ant_ena)) {
+            fprintf(stderr, "array geometry load error: %s\n", geom_file);
+        }
+    }
     if (tint > 0.0) {
         printf("%s", ESC_HCUR);
     }
@@ -333,5 +371,6 @@ int main(int argc, char **argv)
     if (*debug_file) {
         traceclose();
     }
+    done = 1; // release the console control handler
     return 0;
 }

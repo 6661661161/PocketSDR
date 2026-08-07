@@ -1,0 +1,742 @@
+/*
+ *  Pocket SDR Web UI - style sheet
+ */
+
+/* Theme ---------------------------------------------------------------------*/
+:root {
+    --bg1: #FFFFFF;   /* background 1 */
+    --bg2: #F0F0F0;   /* background 2 */
+    --fg: #555555;    /* foreground */
+    --gr: #E4E4E4;    /* gray color */
+    --p1: #003020;    /* plot color 1 */
+    --p2: #888844;    /* plot color 2 */
+    --p3: #BBBBBB;    /* plot color 3 */
+    --warn: #FF4000;  /* warning color */
+    --dis: #999999;   /* disable color */
+    --act: #0f64ed;   /* active color */
+    --bd: 1px solid #CCCCCC; /* border color */
+    --font: 10px "Noto Sans", sans-serif;
+    --mono: 10px "Noto Sans Mono", monospace;
+    --plot-font: 9px "Noto Sans", sans-serif;
+    --plot-title-font: bold 10px "Noto Sans", sans-serif;
+    --sky-sat-font: 9px "Noto Sans", sans-serif;
+    --sky-sat-size: 9px;
+    --tbl-font: 9px "Noto Sans", sans-serif;
+}
+
+/* Base ----------------------------------------------------------------------*/
+* {
+    font: var(--font);
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+html, body {
+    height: 100%;
+}
+body {
+    padding: 2px 2px;
+    background: var(--bg2);
+}
+button {
+    --font: 11px "Noto Sans", sans-serif;
+    font-weight: bold;
+    color: var(--act);
+    border: var(--bd);
+    padding: 5px 2px;
+}
+button:hover {
+    background: var(--bg1);
+    cursor: pointer;
+}
+button:disabled {
+    color: var(--dis);
+}
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-width: 200px;
+}
+
+/* title bar -----------------------------------------------------------------*/
+#titlebar {
+    --font: 11px "Noto Sans", sans-serif;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 0px 6px;
+    border: var(--bd);
+}
+#logo {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+#btnbar {
+    display: flex;
+    gap: 1px;
+    padding: 1px 1px;
+}
+#btnbar button {
+    width: 50px;
+    padding: 6px 0px;
+}
+#btnbar button.help {
+    width: auto;
+    padding: 6px 5px;
+}
+#conn {
+    display: flex;
+    align-items: center;
+    padding-left: 4px;
+}
+.conn-on {
+    color: #008800;
+}
+.conn-off {
+    color: var(--warn);
+}
+
+/* tab bar -------------------------------------------------------------------*/
+#tabbar {
+    display: flex;
+    background: var(--bg1);
+    border-top: solid 1px var(--bg1);
+    border-bottom: var(--bd);
+}
+#tabbar .tab {
+    color: var(--dis);
+    background: var(--bg1);
+    font-weight: bold;
+    padding: 7px 6px;
+    cursor: pointer;
+    user-select: none;
+}
+#tabbar .tab.active {
+    color: var(--act);
+    background: var(--bg2);
+    border-top: var(--bd);
+    border-left: var(--bd);
+    border-right: var(--bd);
+    border-bottom: none;
+}
+
+/* status bar ----------------------------------------------------------------*/
+#statusbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 6px;
+    color: var(--act);
+    background: var(--bg1);
+    border: var(--bg2);
+    white-space: nowrap;
+    overflow: hidden;
+}
+#msg2 {
+    min-width: 120px;
+    text-align: right;
+}
+
+/* toolbar ---------------------------------------------------------------------*/
+.toolbar {
+    display: flex;
+    padding: 5px 6px;
+    gap: 2px;
+    color: var(--fg);
+    background: var(--bg2);
+    white-space: nowrap;
+    overflow: hidden;
+    align-items: center;
+}
+.toolbar .space {
+    flex: 1;
+}
+.toolbar .ttl {
+    font-size: 11px;
+    font-weight: bold;
+}
+.toolbar select, .toolbar input {
+    background: var(--bg1);
+    border: var(--bd);
+    padding: 4px 2px;
+}
+.toolbar button {
+    width: 62px;
+}
+.toolbar button.nav {
+    width: auto;
+    padding: 5px 6px;
+}
+@media (max-width: 620px) { /* reach the controls that do not fit */
+    .toolbar {
+        overflow-x: auto;
+    }
+}
+
+/* page container ------------------------------------------------------------*/
+#pages {
+    flex: 1;
+    min-height: 0px;
+    background: var(--bg1);
+    position: relative;
+}
+.page {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+}
+.page.active {
+    display: flex;
+}
+
+/* Shared page elements ------------------------------------------------------*/
+
+/* plot panes filling the page below the toolbar (Receiver, RF CH, Correlator,
+   Solution) */
+.rcv-main, .rfch-main, .rfch-band, .rfch-tiles, .corr-main, .sol-enu,
+.sol-hori {
+    flex: 1;
+    min-height: 0;
+}
+.plotbox {
+    border: 2px solid var(--bg2);
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+}
+.plotbox canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* scrolling page body (BB CH, Satellites, Array, Log, System/Input/Output/
+   Signal Options) */
+.bbch-body, .ar-body, .log-body, .op-body, .cfg-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+/* status text (BB CH buffer use, Options warnings) */
+.warn-txt {
+    color: var(--warn);
+    font-weight: bold;
+}
+.ok-txt {
+    color: #006600;
+}
+/* compact buttons inside a page body (Array, System Options) */
+.ar-beam button, table.optbl button {
+    font: var(--font);
+    background: var(--bg2);
+    border: var(--bd);
+    padding: 1px 8px;
+    cursor: pointer;
+}
+
+/* Receiver page -------------------------------------------------------------*/
+.rcv-main {
+    display: grid;
+    grid-template-rows: 1fr minmax(180px, 47%);
+}
+.rcv-top {
+    display: grid;
+    grid-template-columns: 1fr minmax(180px, 33%);
+    min-height: 0;
+    overflow: hidden;
+}
+.rcv-body2, .rcv-sky, .rcv-cn0 {
+    border: 2px solid var(--bg2);
+}
+.rcv-body2 {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    padding: 10px 12px;
+}
+.rcv-grid { /* one column when too narrow, scroll when too tall */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    column-gap: 12px;
+    width: 100%;
+    margin: auto 0;
+}
+.rcv-col {
+    display: flex;
+    flex-direction: column;
+}
+.rcv-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--bg2)
+}
+.rcv-row .lbl {
+    color: var(--fg);
+    font-weight: bold;
+}
+.rcv-row .val {
+    color: var(--p1);
+    text-align: right;
+    flex: 1;
+}
+.rcv-row .val.warn {
+    color: var(--warn);
+    font-weight: bold;
+}
+.led {
+    display: inline-block;
+    width: 6px;
+    height: 11px;
+    margin-left: 1px;
+    background: var(--bg2);
+    border: var(--bd);
+}
+@media (max-width: 620px) { /* status, sky plot and C/N0 by thirds */
+    .rcv-main {
+        grid-template-rows: 2fr 1fr;
+    }
+    .rcv-top {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+    }
+    .rcv-grid {
+        grid-template-columns: 1fr 1fr;
+        column-gap: 8px;
+    }
+    .rcv-body2 {
+        padding: 6px 8px;
+    }
+}
+@media (max-width: 340px) { /* too narrow for two columns */
+    .rcv-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* RF CH page ----------------------------------------------------------------*/
+.rfch-main {
+    display: grid;
+    grid-template-columns: 65% 35%;
+    grid-template-rows: 1fr 1fr;
+}
+.rfch-psd {
+    grid-row: 1 / 3;
+    position: relative;
+}
+.rfch-band {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+}
+.rfch-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+@media (max-width: 620px) { /* PSD over the histograms side by side */
+    .rfch-main {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 2fr 1fr;
+    }
+    .rfch-psd {
+        grid-row: 1;
+        grid-column: 1 / 3;
+    }
+}
+
+/* BB CH and Satellites pages ------------------------------------------------*/
+table.chtbl {
+    border-collapse: collapse;
+    width: 100%;
+    font: var(--tbl-font);
+}
+table.chtbl th {
+    position: sticky;
+    top: 0;
+    color: var(--fg);
+    background: var(--bg2);
+    border: var(--bd);
+    padding: 2px 4px;
+    text-align: center;
+    font-weight: bold;
+    white-space: nowrap;
+}
+table.chtbl td {
+    padding: 0px 4px;
+    line-height: 1.25;
+    text-align: right;
+    color: var(--p1);
+    white-space: nowrap;
+}
+table.chtbl th.l, table.chtbl td.l {
+    text-align: left;
+}
+table.chtbl th.c, table.chtbl td.c {
+    text-align: center;
+}
+table.chtbl th.bar, table.chtbl td.bar {
+    min-width: 90px;
+}
+table.chtbl tbody tr:hover {
+    background: #c1cbc880;
+    cursor: pointer;
+}
+table.chtbl tr.idle td { /* BB CH: idle channel, Satellites: no PVT */
+    color: var(--p2);
+}
+table.chtbl tr.srch td { /* BB CH: searching channel */
+    color: var(--act);
+}
+table.chtbl tr.unhealthy td { /* Satellites: unhealthy satellite */
+    color: var(--warn);
+}
+.cn0bar {
+    display: inline-block;
+    height: 10px;
+    background: #96aca6a3;
+    vertical-align: middle;
+}
+tr.idle .cn0bar {
+    background: #BBBBBB;
+}
+
+/* Correlator page -----------------------------------------------------------*/
+.corr-main {
+    display: grid;
+    grid-template-columns: 67% 33%;
+    grid-template-rows: 1fr 1fr;
+}
+.corr-plt3 {
+    grid-column: 1 / 3;
+}
+@media (max-width: 620px) { /* correlation, IP-QP and history stacked */
+    .corr-main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+    }
+    .corr-plt3 {
+        grid-column: 1;
+    }
+}
+
+/* Solution page -------------------------------------------------------------*/
+/* Pos E carries the solution title and # Sats the time labels, so their boxes
+   are 11px taller (2 x 5.5px) to keep all four plot areas the same height */
+.sol-enu {
+    display: grid;
+    grid-template-rows: calc(25% + 5.5px) 1fr 1fr calc(25% + 5.5px);
+}
+.sol-hori {
+    display: flex;
+}
+.sol-hori .plotbox {
+    flex: 1;
+}
+
+/* Array page ----------------------------------------------------------------*/
+.ar-body {
+    padding: 8px;
+}
+.ar-frame {
+    border: var(--bd);
+    margin-bottom: 10px;
+    padding: 6px 10px;
+}
+.ar-title {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 6px;
+}
+.ar-frame .mono {
+    font: var(--font);
+    color: var(--p1);
+}
+.ar-beam {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+}
+.ar-beam span {
+    font-weight: bold;
+    color: var(--fg);
+    white-space: nowrap;
+}
+.ar-beam input {
+    font: var(--font);
+    width: 50px;
+    border: var(--bd);
+    padding: 1px 2px;
+}
+.ar-none {
+    padding: 20px;
+    color: var(--p2);
+}
+
+/* Log page ------------------------------------------------------------------*/
+.log-body {
+    background: var(--bg1);
+    padding: 2px 4px;
+}
+.log-body pre {
+    font: var(--mono);
+    line-height: 1.25;
+}
+
+/* Options pages shared ------------------------------------------------------*/
+.cfg-body {
+    padding: 6px 6px;
+}
+.cfg-warn { /* warning at the top of the page body */
+    text-align: center;
+    min-height: 12px;
+    padding-bottom: 4px;
+}
+.cfg-frm { /* option group frame (as the Tk dialog panels) */
+    border: var(--bd);
+    margin: 0 4px 6px;
+    padding: 4px 4px;
+}
+.cfg-sec { /* section heading */
+    font-weight: bold;
+    color: var(--fg);
+    border-bottom: var(--bd);
+    margin: 4px 4px;
+}
+.cfg-frm .cfg-sec { /* the frame draws the separation */
+    border-bottom: none;
+    margin-bottom: 0;
+}
+.cfg-note { /* notes at the bottom of the page body */
+    color: var(--p2);
+    padding: 4px 4px;
+}
+.cfg-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+}
+.cfg-row label {
+    width: 150px;
+    font-weight: bold;
+    color: var(--fg);
+}
+.cfg-row label.sig-chk {
+    width: auto;
+    font-weight: normal;
+}
+.cfg-row label.sub {
+    width: auto;
+    padding-right: 4px;
+}
+.cfg-body input[type=text], .cfg-body input[type=number], .cfg-body select,
+.op-body select {
+    font: var(--font);
+    border: var(--bd);
+    padding: 3px 2px;
+}
+.cfg-body input[type=number] {
+    text-align: right;
+    width: 90px;
+}
+.cfg-body input.num {
+    text-align: right;
+    width: 60px;
+}
+.cfg-body input.num2 {
+    text-align: right;
+    width: 124px;
+}
+.cfg-body input.wide {
+    width: min(520px, 64vw);
+}
+/* checkbox grids (Output log types, Signal GNSS signals) */
+.sig-sec .sig-grid, .cfg-row .sig-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 60px);
+    row-gap: 4px;
+    padding: 4px 4px;
+}
+.sig-chk, .sig-sec .sig-head {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+.sig-sec input[type=checkbox], .cfg-row input[type=checkbox],
+.ot-str input[type=checkbox] {
+    margin: 0 4px 0 0;
+}
+/* no spin buttons on the numeric option fields */
+.op-body input[type=number], .cfg-body input[type=number] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+.op-body input[type=number]::-webkit-outer-spin-button,
+.op-body input[type=number]::-webkit-inner-spin-button,
+.cfg-body input[type=number]::-webkit-outer-spin-button,
+.cfg-body input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Input Options page --------------------------------------------------------*/
+.cfg-tbls { /* the RF CH tables side by side */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 4px;
+}
+table.cfg-tbl {
+    border-collapse: collapse;
+    margin: 4px 4px;
+}
+table.cfg-tbl th, table.cfg-tbl td {
+    padding: 2px 4px;
+    text-align: left;
+    color: var(--fg);
+    white-space: nowrap;
+}
+table.cfg-tbl th {
+    font-weight: bold;
+    border-bottom: var(--bd);
+    margin: 4px 4px;
+}
+.cfg-body input.in-lpf { /* narrower than the other RF CH fields */
+    text-align: right;
+    width: 46px;
+}
+
+/* Output Options page -------------------------------------------------------*/
+.ot-str { /* one output stream row */
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+}
+.ot-str .ot-path {
+    flex: 1;
+    max-width: 560px;
+}
+.ot-str .ot-type {
+    width: 66px;
+}
+
+/* Signal Options page -------------------------------------------------------*/
+.sig-sec { /* one satellite system row */
+    border: var(--bd);
+    padding: 4px 4px;
+    margin: 4px 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.sig-sec .sig-head {
+    font-weight: bold;
+    color: var(--fg);
+    width: 75px;
+    padding: 4px 4px;
+}
+.sig-sec .sig-sat {
+    width: 62px;
+    text-align: center;
+}
+
+/* System Options page -------------------------------------------------------*/
+.op-body {
+    padding: 6px 6px;
+}
+.op-body .cfg-row label {
+    width: 120px;
+}
+.op-body input.wide {
+    font: var(--font);
+    width: min(640px, 75vw);
+    border: var(--bd);
+    padding: 2px 2px;
+}
+table.optbl {
+    border-collapse: collapse;
+}
+table.optbl td {
+    padding: 2px 4px;
+    white-space: nowrap;
+}
+table.optbl td.lbl { /* fixed so the value columns of the frames line up */
+    font-weight: bold;
+    color: #333;
+    width: 210px;
+}
+table.optbl td.note {
+    color: var(--p2);
+}
+table.optbl input {
+    font: var(--font);
+    width: 60px;
+    text-align: right;
+    border: var(--bd);
+    padding: 2px 2px;
+}
+
+/* Help page -----------------------------------------------------------------*/
+.hp-body {
+    color: var(--p1);
+    max-width: 760px;
+}
+.hp-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 6px;
+}
+.hp-logo {
+    width: 34px;
+    height: 34px;
+}
+.hp-name {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--act);
+    text-decoration: none;
+}
+.hp-name:hover {
+    text-decoration: underline;
+}
+.hp-sub {
+    color: var(--p2);
+}
+.hp-sec {
+    font-size: 11px;
+    font-weight: bold;
+    color: #333;
+    border-bottom: var(--bd);
+    margin: 10px 0 4px;
+}
+table.hp-tbl {
+    border-collapse: collapse;
+}
+table.hp-tbl td {
+    padding: 1px 8px 1px 0;
+    vertical-align: top;
+}
+table.hp-tbl td.hp-k {
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+}
+ul.hp-list {
+    padding-left: 16px;
+}
+ul.hp-list li {
+    padding: 1px 0;
+}
+ul.hp-list a {
+    color: var(--act);
+}
+.hp-copy {
+    color: var(--p2);
+    padding-top: 12px;
+}

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket SDR</title>
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <div id="titlebar">
+    <img id="logo" src="img/favicon.svg" alt="Pocket SDR" title="Pocket SDR">
+    <span id="btnbar">
+      <button id="btn-start" disabled>Start</button>
+      <button id="btn-stop" disabled>Stop</button>
+      <button id="btn-inp">Input</button>
+      <button id="btn-out">Output</button>
+      <button id="btn-sig">Signal</button>
+      <button id="btn-sys">System</button>
+      <button id="btn-help" class="help">?</button>
+    </span>
+    <span id="conn" class="conn-off" title="OFFLINE"></span>
+  </div>
+  <div id="tabbar"></div>
+  <div id="pages"></div>
+  <div id="statusbar">
+    <span id="msg1"></span>
+    <span id="msg2"></span>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

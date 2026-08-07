@@ -24,6 +24,8 @@
 //  2026-07-05  1.16 ver.0.18
 //  2026-07-19  1.17 support extended coherent tracking for pilot signals
 //  2026-07-24  1.18 support up to 8 output streams with selectable types
+//  2026-08-01  1.19 add Web UI server APIs (sdr_web.c)
+//  2026-08-02  1.20 add Web UI receiver configuration and lifecycle APIs
 //
 #ifndef POCKET_SDR_H
 #define POCKET_SDR_H
@@ -125,6 +127,7 @@ typedef struct {int8_t  I, Q;} sdr_cpx16_t; // 16(8+8)   bits complex type
 typedef struct {int32_t I, Q;} sdr_cpx64_t; // 64(32+32) bits complex type
 typedef float sdr_cpx_t[2];      // single precision complex type
 typedef struct sdr_lpf_tag sdr_lpf_t; // LPF type
+typedef struct sdr_web_tag sdr_web_t; // Web UI server type
 
 #ifdef WIN32
 typedef HANDLE sdr_thread_t;     // thread type
@@ -334,6 +337,39 @@ typedef struct {                // SDR antenna array type
     double rms;                 // calibration RMS (m)
 } sdr_array_t;
 
+#define SDR_WEB_MAX_SIG 64      // max signal entries in Web UI configuration
+#define SDR_WEB_N_LOG  10       // number of receiver log types
+
+typedef struct {                // Web UI receiver configuration type
+    int inp;                    // input source (0:USB device,1:file,2:SoapySDR)
+    char file[1024];            // IF data file path
+    int fmt;                    // IF data format (SDR_FMT_???)
+    double fs;                  // sampling rate (sps)
+    double fo[SDR_MAX_RFCH];    // LO frequencies (Hz)
+    int IQ[SDR_MAX_RFCH];       // sampling types (1:I,2:IQ)
+    int bits[SDR_MAX_RFCH];     // sample bits (2 or 3)
+    double toff, tscale;        // replay time offset (s) and time scale
+    double lpf_bw[SDR_MAX_RFCH]; // LPF bandwidths (MHz, 0: disabled)
+    int fast_acq;               // fast acquisition mode (-FAST_SRCH)
+    int array_sep;              // RF CH separation as receivers (-ARRAY)
+    int bus, port;              // USB bus and port numbers (-1:any)
+    int conf_ena;               // apply the device configuration file
+    char conf_file[1024];       // device configuration file
+    char dev_opt[1024];         // RF frontend device options
+    char driver[32];            // SoapySDR driver
+    int nsig;                   // number of signal entries
+    char sig[SDR_WEB_MAX_SIG][16]; // signal IDs
+    char prn[SDR_WEB_MAX_SIG][256]; // PRN number lists
+    int str_type[SDR_MAX_STR];  // output stream types (SDR_STR_???)
+    char str_path[SDR_MAX_STR][1024]; // output stream paths
+    int log_mask[SDR_WEB_N_LOG]; // receiver log type mask (TIME,POS,...,LOG)
+    char rfch[1024];            // RF CH assignments (<sig>:<ch>[,...] ...)
+    char opt[1024];             // receiver options
+    char fftw[1024];            // FFTW wisdom file path
+    int nant;                   // number of array antenna elements
+    double ant_pos[SDR_MAX_RFCH][3]; // element positions in body-frame (m)
+} sdr_web_cfg_t;
+
 typedef struct sdr_rcv_tag {    // SDR receiver type
     int state;                  // state (0:stop,1:run)
     int dev;                    // SDR device type (SDR_DEV_???)
@@ -382,6 +418,7 @@ void sdr_mutex_unlock(sdr_mutex_t *mtx);
 sdr_usb_t *sdr_usb_open(int bus, int port, const uint16_t *vid,
     const uint16_t *pid, int n);
 void sdr_usb_close(sdr_usb_t *usb);
+int sdr_usb_reset(sdr_usb_t *usb);
 int sdr_usb_req(sdr_usb_t *usb, int mode, uint8_t req, uint16_t val,
     uint8_t *data, int size);
 
@@ -611,6 +648,16 @@ int sdr_rcv_set_gain(sdr_rcv_t *rcv, int ch, int gain);
 int sdr_rcv_get_filt(sdr_rcv_t *rcv, int ch, double *bw, double *freq,
     int *order);
 int sdr_rcv_set_filt(sdr_rcv_t *rcv, int ch, double bw, double freq, int order);
+
+// sdr_web.c
+sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
+    const char *html_dir);
+void sdr_web_init_cfg(sdr_web_cfg_t *cfg);
+void sdr_web_set_cfg(sdr_web_t *web, const sdr_web_cfg_t *cfg,
+    const char *file);
+int sdr_web_load_cfg(sdr_web_t *web);
+int sdr_web_start_rcv(sdr_web_t *web);
+sdr_rcv_t *sdr_web_stop(sdr_web_t *web);
 
 #ifdef __cplusplus
 }
