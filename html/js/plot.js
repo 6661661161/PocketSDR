@@ -7,7 +7,7 @@ export const P1 = '#003020';        // primary plot color
 export const P2 = '#888844';        // secondary plot color
 export const P3 = '#BBBBBB';        // reference line color
 export const WARN = '#FF4000';      // warning color
-export const LW = 0.6;                // line width
+export const LW = 0.6;               // line width
 
 // read a CSS custom property with fallback ------------------------------------
 export function cssVar(name, def) {
@@ -179,7 +179,7 @@ export class Plot {
                 ctx.stroke();
                 if (this.opt.xlabels !== false) {
                     ctx.fillText(this.opt.taxis ? timeLabel(x) :
-                        x.toFixed(dec(this.xt)), px, this.ax[3] + 3);
+                        x.toFixed(dec(this.xt)), px, this.ax[3] + 2);
                 }
             }
         }
@@ -200,7 +200,7 @@ export class Plot {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillText(this.opt.title, (this.ax[0] + this.ax[2]) / 2,
-                this.ax[1] - 4);
+                this.ax[1] - 1);
         }
         if (this.opt.xlabel) {
             ctx.font = this.font;
@@ -214,8 +214,19 @@ export class Plot {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
                 ctx.fillText(this.opt.xlabel, (this.ax[0] + this.ax[2]) / 2,
-                    this.ax[3] + 2 + (this.opt.xlabels === false ? 0 : fs * 1.3));
+                    this.ax[3] + 1 + (this.opt.xlabels === false ? 0 : fs * 1.2));
             }
+        }
+        if (this.opt.ylabel) { // rotated, left of the tick labels
+            const fs = parseFloat(this.font) || 10;
+            ctx.font = this.font;
+            ctx.save();
+            ctx.translate(this.ax[0] - fs * 3.2, (this.ax[1] + this.ax[3]) / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(this.opt.ylabel, 0, 0);
+            ctx.restore();
         }
     }
     // polyline in data coordinates
@@ -321,7 +332,7 @@ export class Plot {
             ctx.fillStyle = BG;
             ctx.fill();
             ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = LW;
             ctx.stroke();
         }
         else {

@@ -22,8 +22,10 @@ export class LogPage {
             `<div class="log-body" id="lg-body"><pre id="lg-pre"></pre></div>`;
         this.body = this.el.querySelector('#lg-body');
         this.pre = this.el.querySelector('#lg-pre');
-        this.el.querySelector('#lg-sel').onchange = () => this.render();
-        this.el.querySelector('#lg-txt').oninput = () => this.render();
+        // the filter applies to the lines received from now on, not to the
+        // lines already shown, as the Tk GUI does
+        this.el.querySelector('#lg-sel').onchange = () => this.setFilter();
+        this.el.querySelector('#lg-txt').oninput = () => this.setFilter();
         this.el.querySelector('#lg-pause').onclick = () => {
             this.paused = !this.paused;
             this.el.querySelector('#lg-pause').textContent =
@@ -34,25 +36,27 @@ export class LogPage {
             this.lines = [];
             this.render();
         };
+        this.setFilter();
         app.ws.on('log', (msg) => {
             if (!this.active) return;
-            this.lines.push(...msg.lines);
+            this.lines.push(...msg.lines.filter(line => this.match(line)));
             if (this.lines.length > MAX_LINES) {
                 this.lines.splice(0, this.lines.length - MAX_LINES);
             }
             if (!this.paused) this.render();
         });
     }
-    filter() {
+    setFilter() {
         const filt = (this.el.querySelector('#lg-sel').value + ' ' +
             this.el.querySelector('#lg-txt').value).trim();
-        if (!filt) return this.lines;
-        const terms = filt.split(/\s+/).map(t => t.split('|'));
-        return this.lines.filter(
-            line => terms.every(alts => alts.some(a => line.includes(a))));
+        this.terms = filt ? filt.split(/\s+/).map(t => t.split('|')) : null;
+    }
+    match(line) {
+        return !this.terms ||
+            this.terms.every(alts => alts.some(a => line.includes(a)));
     }
     render() {
-        this.pre.textContent = this.filter().join('\n');
+        this.pre.textContent = this.lines.join('\n');
         this.body.scrollTop = this.body.scrollHeight;
     }
     show() { // keep the lines already received; the server resumes from there

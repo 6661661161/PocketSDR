@@ -1,6 +1,6 @@
 // Pocket SDR Web UI - Receiver page
 
-import {Plot, BG, FG, GR, SYS_COLOR, SYS_COLOR2, cssVar, plotFont}
+import {Plot, BG, FG, GR, LW, SYS_COLOR, SYS_COLOR2, cssVar, plotFont}
     from '../plot.js';
 
 const D2R = Math.PI / 180;
@@ -79,7 +79,7 @@ export class RcvPage {
             `<label>RF CH</label><select id="rcv-rf"><option>ALL</option>` +
             [...Array(16)].map((_, i) => `<option>${i+1}</option>`).join('') +
             `</select>` +
-            `<label>System</label><select id="rcv-sys">` +
+            `<label>Sys</label><select id="rcv-sys">` +
             SYSTEMS.map(s => `<option>${s}</option>`).join('') + `</select>` +
             `<label>Output</label><span id="rcv-leds">` +
             '<span class="led"></span>'.repeat(8) + `</span>` +
@@ -97,7 +97,7 @@ export class RcvPage {
         this.leds = this.el.querySelectorAll('#rcv-leds .led');
         this.sky = this.el.querySelector('#rcv-sky');
         this.cn0Plot = new Plot(this.el.querySelector('#rcv-cn0'), {
-            margin: [25, 15, 18, 18], title: 'Signal C/N0 (dB-Hz)',
+            margin: [15, 10, 15, 15], title: 'Signal C/N0 (dB-Hz)',
             ylim: [20, 55], ystep: 5, xticks: false});
         for (const id of ['rcv-rf', 'rcv-sys']) {
             this.el.querySelector('#' + id).onchange = () => this.resub();
@@ -247,12 +247,12 @@ export class RcvPage {
         const w = r0.width, h = r0.height;
         ctx.fillStyle = BG;
         ctx.fillRect(0, 0, w, h);
-        const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 13;
+        const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2 - 12;
         const arch = this.archSel();
         if (arch && this.el.querySelector('#rcv-gain').checked) {
             this.drawGainOverlay(ctx, cx, cy, R, arch);
         }
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = LW;
         for (const el of [0, 30, 60]) {
             ctx.strokeStyle = el == 0 ? FG : GR;
             ctx.beginPath();
@@ -279,7 +279,7 @@ export class RcvPage {
             ctx.translate(cx + R * Math.sin(az * D2R),
                 cy - R * Math.cos(az * D2R));
             ctx.rotate(az * D2R);
-            ctx.fillText(lbl, 0, -2);
+            ctx.fillText(lbl, 0, -0.5);
             ctx.restore();
         }
         ctx.textBaseline = 'middle';
@@ -411,26 +411,26 @@ export class RcvPage {
                 const px = p.xp(i) + off, py0 = p.yp(20), py1 = p.yp(s.cn0);
                 if (py0 - py1 < 1.0) return;
                 ctx.fillStyle = color;
-                ctx.fillRect(px - 2.5, py1, 5, py0 - py1);
+                ctx.fillRect(px - 2.2, py1, 4.4, py0 - py1);
                 ctx.strokeStyle = FG;
-                ctx.lineWidth = 0.6;
-                ctx.strokeRect(px - 2.5, py1, 5, py0 - py1);
+                ctx.lineWidth = LW;
+                ctx.strokeRect(px - 2.2, py1, 4.4, py0 - py1);
             });
         });
         p.end();
         sats.forEach((sat, i) => {
-            p.textPx(p.xp(i), p.ax[3] + 4,
+            p.textPx(p.xp(i), p.ax[3] + 2,
                 sys == 'ALL' ? sat.replace(/^[A-Z]/, '') : sat,
                 SYS_COLOR[satSys(sat)] || FG, 'center', 'top');
         });
-        p.textPx(p.ax[0] + 10, p.ax[1] + 16,
+        p.textPx(p.ax[0] + 8, p.ax[1] + 12,
             '#Sats: ' + nuse + '/' + sats.length, FG, 'left');
         if (sys == 'ALL') {
             const present = [...new Set(sats.map(satSys))];
-            let px = p.ax[2] - 10;
+            let px = p.ax[2] - 8;
             for (const s of present.reverse()) {
-                p.textPx(px, p.ax[1] + 16, s, SYS_COLOR[s], 'right');
-                px -= 8;
+                p.textPx(px, p.ax[1] + 12, s, SYS_COLOR[s], 'right');
+                px -= 7.5;
             }
         }
         else {

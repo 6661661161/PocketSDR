@@ -21,7 +21,7 @@ export class SatsPage {
         }
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>System</label><select id="st-sys">` +
+            `<label>Sys</label><select id="st-sys">` +
             SYSTEMS.map(s => `<option>${s}</option>`).join('') + `</select>` +
             `<span class="space"></span>` +
             `<span class="mono" id="st-cnt"></span>` +

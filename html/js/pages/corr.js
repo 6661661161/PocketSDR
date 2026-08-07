@@ -17,13 +17,12 @@ export class CorrPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>BB</label>` +
+            `<label>CH</label>` +
             `<button id="co-prev" class="nav">&lt;</button>` +
             `<select id="co-ch"></select>` +
             `<button id="co-next" class="nav">&gt;</button>` +
-            `<span class="mono" id="co-info"></span>` +
             `<span class="space"></span>` +
-            `<label>IQ/W(µs)/T(s)/Range</label><select id="co-iq">` +
+            `<label>IQ/W(μs)/T(s)/Range</label><select id="co-iq">` +
             ['I', 'Q', 'IQ', 'AveI', 'AveIQ'].map(
                 v => `<option>${v}</option>`).join('') + `</select>` +
             `<select id="co-w">` +
@@ -50,11 +49,11 @@ export class CorrPage {
         this.el.querySelector('#co-t').value = '1';
         this.el.querySelector('#co-rng').value = '0.4';
         this.plt1 = new Plot(this.el.querySelector('#co-plt1'), {
-            margin: [28, 18, 18, 18], xlabel: 'COFF (ms)', xlabel_in: 1});
+            margin: [25, 15, 15, 15], xlabel: 'COFF (ms)', xlabel_in: 1});
         this.plt2 = new Plot(this.el.querySelector('#co-plt2'), {
-            margin: [28, 18, 18, 18], title: 'IP-QP', aspect: 1});
+            margin: [25, 15, 15, 15], title: 'IP-QP', aspect: 1});
         this.plt3 = new Plot(this.el.querySelector('#co-plt3'), {
-            margin: [28, 18, 18, 18], title: 'Time (s) - IP/QP'});
+            margin: [25, 15, 15, 15], title: 'Time (s) - IP/QP'});
         this.el.querySelector('#co-prev').onclick = () => this.navCh(-1);
         this.el.querySelector('#co-next').onclick = () => this.navCh(1);
         this.el.querySelector('#co-ch').onchange = () =>
@@ -144,11 +143,14 @@ export class CorrPage {
         this.app.ws.sub('ch_stat', {chno: 0, opt: 1, cyc: 200,
             min_lock: 2.0});
     }
-    updateInfo() {
+    // channel information drawn at the top left of the correlation plot ------
+    infoStr() {
         const f = this.stat;
-        this.el.querySelector('#co-info').textContent = f ?
-            `RF CH: ${f[1]}  SAT: ${f[2]}  SIG: ${f[3]}  PRN: ${f[4]}` +
-            `  LOCK: ${f[5]} s` : '';
+        return f ? `RF CH: ${f[1]}  SAT: ${f[2]}  SIG: ${f[3]}  PRN: ${f[4]}` :
+            '';
+    }
+    updateInfo() {
+        if (this.active) this.drawPlt1();
     }
     draw() {
         this.drawPlt1();
@@ -187,7 +189,7 @@ export class CorrPage {
         p.end();
         // scale bar (W/10 us) with end ticks, label at its left
         const bar = W * 1e-4 * p.xs; // in px
-        const bx = p.ax[2] - 15 - bar, by = p.ax[1] + 18;
+        const bx = p.ax[2] - 12 - bar, by = p.ax[1] + 12;
         const ctx = p.ctx;
         ctx.strokeStyle = FG;
         ctx.lineWidth = 0.6;
@@ -201,9 +203,10 @@ export class CorrPage {
         ctx.stroke();
         p.textPx(bx - 5, by, (W / 10).toFixed(2) + ' us', FG, 'right');
         if (mode == 'AveI' || mode == 'AveIQ') { // DLL integration time
-            p.textPx(p.ax[2] - 15, by + 15,
+            p.textPx(p.ax[2] - 12, by + 12,
                 'Integ = ' + this.tDll + ' s', FG, 'right');
         }
+        p.textPx(p.ax[0] + 10, by, this.infoStr(), FG, 'left');
     }
     drawPlt2() {
         const p = this.plt2, m = this.corr, h = this.hist;
@@ -247,15 +250,15 @@ export class CorrPage {
             p.point(t[h.n-1], ip[h.n-1], 7, P1);
         }
         p.end();
-        p.textPx(p.ax[2] - 70, p.ax[1] + 15, '— IP', P1, 'left');
-        p.textPx(p.ax[2] - 40, p.ax[1] + 15, '— QP', P2, 'left');
+        p.textPx(p.ax[2] - 60, p.ax[1] + 10, '— IP', P1, 'left');
+        p.textPx(p.ax[2] - 35, p.ax[1] + 10, '— QP', P2, 'left');
         const f = this.stat;
         if (f) {
-            p.textPx(p.ax[0] + 10, p.ax[1] + 15,
+            p.textPx(p.ax[0] + 8, p.ax[1] + 10,
                 `C/N0: ${f[6]} dB-Hz  COFF: ${f[8]} ms  DOP: ${f[9]} Hz  ` +
                 `ADR: ${f[10]} cyc  SYNC: ${f[11]}  #NAV: ${f[12]}`, FG,
                 'left');
-            p.textPx(p.ax[0] + 10, p.ax[3] - 15,
+            p.textPx(p.ax[0] + 8, p.ax[3] - 10,
                 `ERR_P: ${f[16]} cyc  ERR_C: ${f[17]} m  PLI: ${f[18]}  ` +
                 `NAV: ${f[20]}-${f[21]}-${f[22]}  WEEK: ${f[23]}  ` +
                 `TOW: ${f[24]} s`, FG, 'left');

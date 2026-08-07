@@ -60,10 +60,11 @@ export class SolPage {
         const titles = ['Pos E (m)', 'Pos N (m)', 'Pos U (m)', '# Sats'];
         this.plots = [0, 1, 2, 3].map(i => new Plot(
             this.el.querySelector('#so-plt' + i), {
-            margin: [25, 18, i == 0 ? 18 : 4, i == 3 ? 18 : 4], taxis: 1,
+            margin: [20, 15, i == 0 ? 15 : 4, i == 3 ? 15 : 4], taxis: 1,
             xlabels: i == 3})); // time labels only on the bottom panel
         this.horiPlot = new Plot(this.el.querySelector('#so-plt4'), {
-            margin: [25, 18, 18, 18]});
+            margin: [32, 15, 15, 24], // room for the axis labels
+            xlabel: 'Pos E (m)', ylabel: 'Pos N (m)'});
         this.titles = titles;
         this.solStr = '';
         this.el.querySelector('#so-type').onchange = () => this.setMode();

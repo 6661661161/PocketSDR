@@ -1,22 +1,30 @@
-/* Pocket SDR Web UI - style sheet */
+/*
+ *  Pocket SDR Web UI - style sheet
+ */
 
+/* Theme ---------------------------------------------------------------------*/
 :root {
-    --bg: #F0F0F0;
-    --fg: #555555;
-    --gr: #E4E4E4;
-    --p1: #555555;
-    --p2: #888844;
-    --p3: #BBBBBB;
-    --warn: #FF4000;
-    --dis: #888888;
-    --act: #196bee;
-    --bd: 1px solid #CCCCCC;
+    --bg1: #FFFFFF;   /* background 1 */
+    --bg2: #F0F0F0;   /* background 2 */
+    --fg: #555555;    /* foreground */
+    --gr: #E4E4E4;    /* gray color */
+    --p1: #003020;    /* plot color 1 */
+    --p2: #888844;    /* plot color 2 */
+    --p3: #BBBBBB;    /* plot color 3 */
+    --warn: #FF4000;  /* warning color */
+    --dis: #999999;   /* disable color */
+    --act: #0f64ed;   /* active color */
+    --bd: 1px solid #CCCCCC; /* border color */
     --font: 10px "Noto Sans", sans-serif;
-    --mono: 10px "Noto Mono", monospace;
-    --plot-font: 10px "Noto Sans", sans-serif;
+    --mono: 10px "Noto Sans Mono", monospace;
+    --plot-font: 9px "Noto Sans", sans-serif;
     --plot-title-font: bold 10px "Noto Sans", sans-serif;
+    --sky-sat-font: 9px "Noto Sans", sans-serif;
+    --sky-sat-size: 9px;
     --tbl-font: 9px "Noto Sans", sans-serif;
 }
+
+/* Base ----------------------------------------------------------------------*/
 * {
     font: var(--font);
     box-sizing: border-box;
@@ -28,17 +36,17 @@ html, body {
 }
 body {
     padding: 2px 2px;
-    background: var(--bg);
+    background: var(--bg2);
 }
 button {
     --font: 11px "Noto Sans", sans-serif;
     font-weight: bold;
     color: var(--act);
     border: var(--bd);
-    padding: 2px 2px;
+    padding: 5px 2px;
 }
 button:hover {
-    background: white;
+    background: var(--bg1);
     cursor: pointer;
 }
 button:disabled {
@@ -48,10 +56,10 @@ button:disabled {
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-width: 300px;
+    min-width: 200px;
 }
 
-/* title/command bar */
+/* title bar -----------------------------------------------------------------*/
 #titlebar {
     --font: 11px "Noto Sans", sans-serif;
     font-weight: bold;
@@ -70,7 +78,8 @@ button:disabled {
 }
 #btnbar {
     display: flex;
-    gap: 2px;
+    gap: 1px;
+    padding: 1px 1px;
 }
 #btnbar button {
     width: 50px;
@@ -92,49 +101,38 @@ button:disabled {
     color: var(--warn);
 }
 
-/* tab bar */
+/* tab bar -------------------------------------------------------------------*/
 #tabbar {
     display: flex;
-    background: var(--bg);
-    border: var(--bd);
+    background: var(--bg1);
+    border-top: solid 1px var(--bg1);
+    border-bottom: var(--bd);
 }
 #tabbar .tab {
     color: var(--dis);
+    background: var(--bg1);
     font-weight: bold;
-    padding: 6px 6px;
+    padding: 7px 6px;
     cursor: pointer;
     user-select: none;
 }
 #tabbar .tab.active {
-    color: var(--fg);
-    background: white;
-    border: var(--bd);
+    color: var(--act);
+    background: var(--bg2);
+    border-top: var(--bd);
+    border-left: var(--bd);
+    border-right: var(--bd);
+    border-bottom: none;
 }
 
-/* Pages */
-#pages {
-    flex: 1;
-    min-height: 0px;
-    background: white;
-    position: relative;
-}
-.page {
-    display: none;
-    flex-direction: column;
-    height: 100%;
-}
-.page.active {
-    display: flex;
-}
-
-/* status bar */
+/* status bar ----------------------------------------------------------------*/
 #statusbar {
     display: flex;
     justify-content: space-between;
     padding: 2px 6px;
-    background: white;
-    border: var(--bd);
     color: var(--act);
+    background: var(--bg1);
+    border: var(--bg2);
     white-space: nowrap;
     overflow: hidden;
 }
@@ -143,12 +141,13 @@ button:disabled {
     text-align: right;
 }
 
-/* toolbar */
+/* toolbar ---------------------------------------------------------------------*/
 .toolbar {
     display: flex;
-    padding: 6px 6px;
+    padding: 5px 6px;
     gap: 2px;
-    background: var(--bg);
+    color: var(--fg);
+    background: var(--bg2);
     white-space: nowrap;
     overflow: hidden;
     align-items: center;
@@ -161,44 +160,103 @@ button:disabled {
     font-weight: bold;
 }
 .toolbar select, .toolbar input {
-    background: white;
+    background: var(--bg1);
     border: var(--bd);
-    padding: 1px 2px;
+    padding: 4px 2px;
+}
+.toolbar button {
+    width: 62px;
 }
 .toolbar button.nav {
     width: auto;
-    padding: 2px 4px;
+    padding: 5px 6px;
 }
-.toolbar button {
-    width: 60px;
-    padding; 6px 0px;
+@media (max-width: 620px) { /* reach the controls that do not fit */
+    .toolbar {
+        overflow-x: auto;
+    }
 }
 
-/* Receiver page */
-.rcv-main {
+/* page container ------------------------------------------------------------*/
+#pages {
+    flex: 1;
+    min-height: 0px;
+    background: var(--bg1);
+    position: relative;
+}
+.page {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+}
+.page.active {
+    display: flex;
+}
+
+/* Shared page elements ------------------------------------------------------*/
+
+/* plot panes filling the page below the toolbar (Receiver, RF CH, Correlator,
+   Solution) */
+.rcv-main, .rfch-main, .rfch-band, .rfch-tiles, .corr-main, .sol-enu,
+.sol-hori {
     flex: 1;
     min-height: 0;
+}
+.plotbox {
+    border: 2px solid var(--bg2);
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+}
+.plotbox canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* scrolling page body (BB CH, Satellites, Array, Log, System/Input/Output/
+   Signal Options) */
+.bbch-body, .ar-body, .log-body, .op-body, .cfg-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+/* status text (BB CH buffer use, Options warnings) */
+.warn-txt {
+    color: var(--warn);
+    font-weight: bold;
+}
+.ok-txt {
+    color: #006600;
+}
+/* compact buttons inside a page body (Array, System Options) */
+.ar-beam button, table.optbl button {
+    font: var(--font);
+    background: var(--bg2);
+    border: var(--bd);
+    padding: 1px 8px;
+    cursor: pointer;
+}
+
+/* Receiver page -------------------------------------------------------------*/
+.rcv-main {
     display: grid;
-    grid-template-rows: 1fr minmax(180px, 45%);
+    grid-template-rows: 1fr minmax(180px, 47%);
 }
 .rcv-top {
     display: grid;
-    grid-template-columns: 1fr minmax(200px, 35%);
+    grid-template-columns: 1fr minmax(180px, 33%);
     min-height: 0;
     overflow: hidden;
 }
+.rcv-body2, .rcv-sky, .rcv-cn0 {
+    border: 2px solid var(--bg2);
+}
 .rcv-body2 {
-    border: 2px solid var(--bg);
-    overflow: auto;
-    padding: 10px 12px;
     display: flex;
     flex-direction: column;
-}
-.rcv-sky {
-    border: 2px solid var(--bg);
-}
-.rcv-cn0 {
-    border: 2px solid var(--bg);
+    overflow: auto;
+    padding: 10px 12px;
 }
 .rcv-grid { /* one column when too narrow, scroll when too tall */
     display: grid;
@@ -207,10 +265,35 @@ button:disabled {
     width: 100%;
     margin: auto 0;
 }
-@media (max-width: 620px) { /* reach the controls that do not fit */
-    .toolbar {
-        overflow-x: auto;
-    }
+.rcv-col {
+    display: flex;
+    flex-direction: column;
+}
+.rcv-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--bg2)
+}
+.rcv-row .lbl {
+    color: var(--fg);
+    font-weight: bold;
+}
+.rcv-row .val {
+    color: var(--p1);
+    text-align: right;
+    flex: 1;
+}
+.rcv-row .val.warn {
+    color: var(--warn);
+    font-weight: bold;
+}
+.led {
+    display: inline-block;
+    width: 6px;
+    height: 11px;
+    margin-left: 1px;
+    background: var(--bg2);
+    border: var(--bd);
 }
 @media (max-width: 620px) { /* status, sky plot and C/N0 by thirds */
     .rcv-main {
@@ -233,41 +316,9 @@ button:disabled {
         grid-template-columns: 1fr;
     }
 }
-.rcv-col {
-    display: flex;
-    flex-direction: column;
-}
-.rcv-row {
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 2px solid var(--bg)
-}
-.rcv-row .lbl {
-    font-weight: bold;
-    color: #333;
-}
-.rcv-row .val {
-    color: var(--p1);
-    text-align: right;
-    flex: 1;
-}
-.rcv-row .val.warn {
-    color: var(--warn);
-    font-weight: bold;
-}
-.led {
-    display: inline-block;
-    width: 6px;
-    height: 10px;
-    margin-left: 2px;
-    border: var(--bd);
-    background: var(--bg);
-}
 
-/* RF CH page */
+/* RF CH page ----------------------------------------------------------------*/
 .rfch-main {
-    flex: 1;
-    min-height: 0;
     display: grid;
     grid-template-columns: 65% 35%;
     grid-template-rows: 1fr 1fr;
@@ -276,16 +327,14 @@ button:disabled {
     grid-row: 1 / 3;
     position: relative;
 }
-.plotbox {
-    border: 2px solid var(--bg);
-    position: relative;
-    min-width: 0;
-    min-height: 0;
+.rfch-band {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
 }
-.plotbox canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
+.rfch-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
 }
 @media (max-width: 620px) { /* PSD over the histograms side by side */
     .rfch-main {
@@ -297,31 +346,8 @@ button:disabled {
         grid-column: 1 / 3;
     }
 }
-.rfch-band {
-    flex: 1;
-    min-height: 0;
-    display: grid;
-    grid-template-rows: 1fr 1fr;
-}
-.rfch-tiles {
-    flex: 1;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-}
 
-/* Satellites page */
-table.chtbl tr.unhealthy td {
-    color: var(--warn);
-}
-
-/* BB CH page */
-.bbch-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-}
+/* BB CH and Satellites pages ------------------------------------------------*/
 table.chtbl {
     border-collapse: collapse;
     width: 100%;
@@ -330,12 +356,12 @@ table.chtbl {
 table.chtbl th {
     position: sticky;
     top: 0;
-    background: var(--bg);
+    color: var(--fg);
+    background: var(--bg2);
     border: var(--bd);
     padding: 2px 4px;
     text-align: center;
     font-weight: bold;
-    color: #333;
     white-space: nowrap;
 }
 table.chtbl td {
@@ -351,18 +377,21 @@ table.chtbl th.l, table.chtbl td.l {
 table.chtbl th.c, table.chtbl td.c {
     text-align: center;
 }
-table.chtbl tbody tr:hover {
-    background: #EFF4F0;
-    cursor: pointer;
-}
-table.chtbl tr.idle td {
-    color: var(--p2);
-}
-table.chtbl tr.srch td {
-    color: var(--act);
-}
 table.chtbl th.bar, table.chtbl td.bar {
     min-width: 90px;
+}
+table.chtbl tbody tr:hover {
+    background: #c1cbc880;
+    cursor: pointer;
+}
+table.chtbl tr.idle td { /* BB CH: idle channel, Satellites: no PVT */
+    color: var(--p2);
+}
+table.chtbl tr.srch td { /* BB CH: searching channel */
+    color: var(--act);
+}
+table.chtbl tr.unhealthy td { /* Satellites: unhealthy satellite */
+    color: var(--warn);
 }
 .cn0bar {
     display: inline-block;
@@ -373,35 +402,42 @@ table.chtbl th.bar, table.chtbl td.bar {
 tr.idle .cn0bar {
     background: #BBBBBB;
 }
-.warn-txt {
-    color: var(--warn);
-    font-weight: bold;
+
+/* Correlator page -----------------------------------------------------------*/
+.corr-main {
+    display: grid;
+    grid-template-columns: 67% 33%;
+    grid-template-rows: 1fr 1fr;
 }
-.ok-txt {
-    color: #006600;
+.corr-plt3 {
+    grid-column: 1 / 3;
+}
+@media (max-width: 620px) { /* correlation, IP-QP and history stacked */
+    .corr-main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+    }
+    .corr-plt3 {
+        grid-column: 1;
+    }
 }
 
-/* Solution page */
+/* Solution page -------------------------------------------------------------*/
+/* Pos E carries the solution title and # Sats the time labels, so their boxes
+   are 11px taller (2 x 5.5px) to keep all four plot areas the same height */
 .sol-enu {
-    flex: 1;
-    min-height: 0;
     display: grid;
-    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-rows: calc(25% + 5.5px) 1fr 1fr calc(25% + 5.5px);
 }
 .sol-hori {
-    flex: 1;
-    min-height: 0;
     display: flex;
 }
 .sol-hori .plotbox {
     flex: 1;
 }
 
-/* Array page */
+/* Array page ----------------------------------------------------------------*/
 .ar-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
     padding: 8px;
 }
 .ar-frame {
@@ -421,8 +457,13 @@ tr.idle .cn0bar {
 .ar-beam {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     padding: 2px 0;
+}
+.ar-beam span {
+    font-weight: bold;
+    color: var(--fg);
+    white-space: nowrap;
 }
 .ar-beam input {
     font: var(--font);
@@ -430,23 +471,192 @@ tr.idle .cn0bar {
     border: var(--bd);
     padding: 1px 2px;
 }
-.ar-beam button {
-    background: var(--bg);
-    border: var(--bd);
-    padding: 1px 8px;
-    cursor: pointer;
-}
 .ar-none {
     padding: 20px;
     color: var(--p2);
 }
 
-/* Options page */
-.op-body {
+/* Log page ------------------------------------------------------------------*/
+.log-body {
+    background: var(--bg1);
+    padding: 2px 4px;
+}
+.log-body pre {
+    font: var(--mono);
+    line-height: 1.25;
+}
+
+/* Options pages shared ------------------------------------------------------*/
+.cfg-body {
+    padding: 6px 6px;
+}
+.cfg-warn { /* warning at the top of the page body */
+    text-align: center;
+    min-height: 12px;
+    padding-bottom: 4px;
+}
+.cfg-frm { /* option group frame (as the Tk dialog panels) */
+    border: var(--bd);
+    margin: 0 4px 6px;
+    padding: 4px 4px;
+}
+.cfg-sec { /* section heading */
+    font-weight: bold;
+    color: var(--fg);
+    border-bottom: var(--bd);
+    margin: 4px 4px;
+}
+.cfg-frm .cfg-sec { /* the frame draws the separation */
+    border-bottom: none;
+    margin-bottom: 0;
+}
+.cfg-note { /* notes at the bottom of the page body */
+    color: var(--p2);
+    padding: 4px 4px;
+}
+.cfg-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+}
+.cfg-row label {
+    width: 150px;
+    font-weight: bold;
+    color: var(--fg);
+}
+.cfg-row label.sig-chk {
+    width: auto;
+    font-weight: normal;
+}
+.cfg-row label.sub {
+    width: auto;
+    padding-right: 4px;
+}
+.cfg-body input[type=text], .cfg-body input[type=number], .cfg-body select,
+.op-body select {
+    font: var(--font);
+    border: var(--bd);
+    padding: 3px 2px;
+}
+.cfg-body input[type=number] {
+    text-align: right;
+    width: 90px;
+}
+.cfg-body input.num {
+    text-align: right;
+    width: 60px;
+}
+.cfg-body input.num2 {
+    text-align: right;
+    width: 124px;
+}
+.cfg-body input.wide {
+    width: min(520px, 64vw);
+}
+/* checkbox grids (Output log types, Signal GNSS signals) */
+.sig-sec .sig-grid, .cfg-row .sig-grid {
     flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 60px);
+    row-gap: 4px;
+    padding: 4px 4px;
+}
+.sig-chk, .sig-sec .sig-head {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+.sig-sec input[type=checkbox], .cfg-row input[type=checkbox],
+.ot-str input[type=checkbox] {
+    margin: 0 4px 0 0;
+}
+/* no spin buttons on the numeric option fields */
+.op-body input[type=number], .cfg-body input[type=number] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+.op-body input[type=number]::-webkit-outer-spin-button,
+.op-body input[type=number]::-webkit-inner-spin-button,
+.cfg-body input[type=number]::-webkit-outer-spin-button,
+.cfg-body input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Input Options page --------------------------------------------------------*/
+.cfg-tbls { /* the RF CH tables side by side */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 4px;
+}
+table.cfg-tbl {
+    border-collapse: collapse;
+    margin: 4px 4px;
+}
+table.cfg-tbl th, table.cfg-tbl td {
+    padding: 2px 4px;
+    text-align: left;
+    color: var(--fg);
+    white-space: nowrap;
+}
+table.cfg-tbl th {
+    font-weight: bold;
+    border-bottom: var(--bd);
+    margin: 4px 4px;
+}
+.cfg-body input.in-lpf { /* narrower than the other RF CH fields */
+    text-align: right;
+    width: 46px;
+}
+
+/* Output Options page -------------------------------------------------------*/
+.ot-str { /* one output stream row */
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+}
+.ot-str .ot-path {
+    flex: 1;
+    max-width: 560px;
+}
+.ot-str .ot-type {
+    width: 66px;
+}
+
+/* Signal Options page -------------------------------------------------------*/
+.sig-sec { /* one satellite system row */
+    border: var(--bd);
+    padding: 4px 4px;
+    margin: 4px 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.sig-sec .sig-head {
+    font-weight: bold;
+    color: var(--fg);
+    width: 75px;
+    padding: 4px 4px;
+}
+.sig-sec .sig-sat {
+    width: 62px;
+    text-align: center;
+}
+
+/* System Options page -------------------------------------------------------*/
+.op-body {
+    padding: 6px 6px;
+}
+.op-body .cfg-row label {
+    width: 120px;
+}
+.op-body input.wide {
+    font: var(--font);
+    width: min(640px, 75vw);
+    border: var(--bd);
+    padding: 2px 2px;
 }
 table.optbl {
     border-collapse: collapse;
@@ -455,9 +665,10 @@ table.optbl td {
     padding: 2px 4px;
     white-space: nowrap;
 }
-table.optbl td.lbl {
+table.optbl td.lbl { /* fixed so the value columns of the frames line up */
     font-weight: bold;
     color: #333;
+    width: 210px;
 }
 table.optbl td.note {
     color: var(--p2);
@@ -467,51 +678,10 @@ table.optbl input {
     width: 60px;
     text-align: right;
     border: var(--bd);
-    padding: 1px 2px;
-}
-table.optbl button {
-    font: var(--font);
-    background: var(--bg);
-    border: var(--bd);
-    padding: 1px 8px;
-    cursor: pointer;
+    padding: 2px 2px;
 }
 
-/* Correlator page */
-.corr-main {
-    flex: 1;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: 67% 33%;
-    grid-template-rows: 1fr 1fr;
-}
-.corr-plt3 {
-    grid-column: 1 / 3;
-}
-@media (max-width: 620px) { /* correlation, IP-QP and history stacked */
-    .corr-main {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr 1fr 1fr;
-    }
-    .corr-plt3 {
-        grid-column: 1;
-    }
-}
-
-/* Log page */
-.log-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    background: white;
-    padding: 2px 4px;
-}
-.log-body pre {
-    font: var(--mono);
-    line-height: 1.25;
-}
-
-/* Help page */
+/* Help page -----------------------------------------------------------------*/
 .hp-body {
     color: var(--p1);
     max-width: 760px;
@@ -569,133 +739,4 @@ ul.hp-list a {
 .hp-copy {
     color: var(--p2);
     padding-top: 12px;
-}
-
-/* Options pages (Input / Output / Signal) */
-.cfg-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 10px 10px;
-}
-.cfg-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 2px;
-}
-.cfg-row label {
-    width: 130px;
-    font-weight: bold;
-    color: #333;
-}
-.cfg-row label.sig-chk {
-    width: auto;
-    font-weight: normal;
-}
-.cfg-body input[type=text], .cfg-body input[type=number],
-.cfg-body select {
-    font: var(--font);
-    border: var(--bd);
-    padding: 1px 3px;
-}
-.cfg-body input[type=number] {
-    width: 90px;
-}
-.cfg-body input.num {
-    width: 60px;
-}
-.cfg-body input.num2 {
-    width: 120px;
-}
-.cfg-body input.wide {
-    width: min(560px, 66vw);
-}
-/* no spin buttons on the option value fields */
-.op-body input[type=number], .cfg-body input[type=number] {
-    appearance: textfield;
-    -moz-appearance: textfield;
-}
-.op-body input[type=number]::-webkit-outer-spin-button,
-.op-body input[type=number]::-webkit-inner-spin-button,
-.cfg-body input[type=number]::-webkit-outer-spin-button,
-.cfg-body input[type=number]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-.op-body input.wide {
-    font: var(--font);
-    width: min(640px, 75vw);
-    border: var(--bd);
-    padding: 1px 3px;
-}
-.op-body select {
-    font: var(--font);
-    border: var(--bd);
-    padding: 1px 3px;
-}
-.op-body .cfg-row label {
-    width: 150px;
-}
-table.cfg-tbl {
-    border-collapse: collapse;
-    margin-top: 8px;
-}
-table.cfg-tbl th, table.cfg-tbl td {
-    padding: 1px 4px;
-    text-align: left;
-    color: #333;
-    white-space: nowrap;
-}
-table.cfg-tbl th {
-    border-bottom: 1px solid #CCC;
-    font-weight: bold;
-}
-.sig-sec {
-    border: var(--bd);
-    padding: 2px 8px;
-    margin-bottom: 2px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.sig-sec .sig-head {
-    font-weight: bold;
-    color: #333;
-    width: 72px;
-}
-.sig-sec .sg-prn {
-    width: 62px;
-}
-.sig-sec .sig-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, 62px);
-    row-gap: 1px;
-}
-.cfg-row .sig-grid { /* receiver log types */
-    flex: 1;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, 62px);
-    row-gap: 1px;
-}
-.cfg-row .sig-chk {
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-}
-.cfg-row input[type=checkbox] {
-    margin: 0 3px 0 0;
-}
-.sig-sec .sig-chk, .sig-sec .sig-head {
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-}
-.sig-sec input[type=checkbox] {
-    margin: 0 2px 0 0;
-}
-.cfg-note {
-    color: var(--p2);
-    padding: 4px 10px;
 }

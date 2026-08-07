@@ -15,7 +15,7 @@ export class BbchPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>RF</label><select id="bb-rfch"><option>ALL</option>` +
+            `<label>RF CH</label><select id="bb-rfch"><option>ALL</option>` +
             [...Array(16)].map((_, i) => `<option>${i+1}</option>`).join('') +
             `</select>` +
             `<label>Sys</label><select id="bb-sys">` +

@@ -1,6 +1,6 @@
 // Pocket SDR Web UI - RF CH page (band map, PSD and histograms)
 
-import {Plot, FG, GR, P1, P2, SYS_COLOR, plotFont, plotTitleFont}
+import {Plot, FG, GR, P1, P2, LW, SYS_COLOR, plotFont, plotTitleFont}
     from '../plot.js';
 
 export const SIG_FREQ = { // signal carrier frequencies (MHz)
@@ -29,8 +29,7 @@ export class RfchPage {
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
-            `<label>CH</label><select id="rf-ch"></select>` +
-            `<span class="mono" id="rf-fs"></span>` +
+            `<label>RF CH</label><select id="rf-ch"></select>` +
             `<span class="space"></span>` +
             `<label>Filter BW (MHz)</label><select id="rf-bw">` +
             ['-', '2.5', '4.2', '8.7', '16.4', '23.4', '36.0'].map(
@@ -59,24 +58,24 @@ export class RfchPage {
             `</div>`;
         this.el.querySelector('#rf-tave').value = '0.01';
         this.psdPlot = new Plot(this.el.querySelector('#rf-psd'), {
-            margin: [25, 18, 18, 28], title: 'Power Spectral Density (dB/Hz)',
+            margin: [20, 15, 15, 25], title: 'Power Spectral Density (dB/Hz)',
             xlabel: 'Frequency (MHz)', xlim: [1560, 1590], ylim: [-85, -45]
         });
         this.histPlot = [1, 2].map(i => new Plot(
             this.el.querySelector('#rf-hist' + i), {
-            margin: [25, 18, 18, 28], title: 'Histogram ' + 'IQ'[i-1],
+            margin: [20, 15, 15, 25], title: 'Histogram ' + 'IQ'[i-1],
             xlabel: 'Quantized Value', xlim: [-5, 5], ylim: [0, 0.4]
         }));
         this.bandPlot = [1, 2].map(i => new Plot(
             this.el.querySelector('#rf-band' + i), {
-            margin: [18, 18, 18, 18], xlim: i == 1 ? [1510, 1650] :
+            margin: [15, 15, 15, 15], xlim: i == 1 ? [1510, 1650] :
                 [1160, 1300], ylim: [0, 9], yticks: false,
             title: i == 1 ? 'GNSS Signal Band L1 (MHz)' :
                 'GNSS Signal Band L2/L5/L6 (MHz)'
         }));
         this.tilePlot = [0, 1, 2, 3].map(i => new Plot(
             this.el.querySelector('#rf-tile' + i), {
-            margin: [42, 14, 20, 28], xlim: [1560, 1590], ylim: [-85, -45]
+            margin: [20, 15, 15, 15], xlim: [1560, 1590], ylim: [-85, -45]
         }));
         this.el.querySelector('#rf-ch').onchange = () => this.resub();
         this.el.querySelector('#rf-tave').onchange = () => this.resub();
@@ -207,13 +206,15 @@ export class RfchPage {
         // LO frequency mark with the label on its IQ: right / I: left side
         const fx = p.xp(fo), fy = p.ax[3] - 10;
         p.markPx(fx, fy, 8, FG, 1);
-        p.textPx(fx + (msg.IQ == 1 ? -7 : 7), fy, fo.toFixed(3) + ' MHz', FG,
-            msg.IQ == 1 ? 'right' : 'left', 'middle');
-        p.textPx(p.ax[2] - 10, p.ax[3] - 14,
+        p.textPx(fx + (msg.IQ == 1 ? 7 : -7), fy, fo.toFixed(3) + ' MHz', FG,
+            msg.IQ == 1 ? 'left' : 'right', 'middle');
+        p.textPx(p.ax[2] - 10, p.ax[3] - 10,
             (msg.IQ == 1 ? 'I' : 'IQ') + ' (' + msg.bits + ' bits)', FG,
             'right', 'middle');
-        p.textPx(p.ax[0] + 10, p.ax[1] + 16, 'CH' + msg.rfch, P1, 'left',
+        p.textPx(p.ax[0] + 10, p.ax[1] + 15, 'CH' + msg.rfch, P1, 'left',
             'middle', plotTitleFont());
+        p.textPx(p.ax[2] - 10, p.ax[1] + 15, 'F_S: ' + fs.toFixed(3) + ' MHz',
+            FG, 'right', 'middle');
     }
     updatePsd(msg) {
         if (!this.active) return;
@@ -221,8 +222,6 @@ export class RfchPage {
         if (mode == 'single' && msg.rfch == this.rfch()) {
             this.bits = msg.bits;
             this.drawPsdPlot(this.psdPlot, msg, true);
-            this.el.querySelector('#rf-fs').textContent =
-                (msg.fs * 1e-6).toFixed(3) + 'MHz';
         }
         else if (mode == 'tiles') {
             const start = parseInt(this.el.querySelector('#rf-ch').value);
@@ -252,9 +251,9 @@ export class RfchPage {
                 }
             }
             p.end();
-            p.textPx(p.ax[2] - 10, p.ax[1] + 16, 'Ave: ' + ave.toFixed(2),
+            p.textPx(p.ax[2] - 8, p.ax[1] + 12, 'Ave: ' + ave.toFixed(2),
                 FG, 'right', 'middle');
-            p.textPx(p.ax[2] - 10, p.ax[1] + 30,
+            p.textPx(p.ax[2] - 8, p.ax[1] + 24,
                 'Std: ' + Math.sqrt(vari).toFixed(2), FG, 'right', 'middle');
         }
     }
@@ -266,7 +265,6 @@ export class RfchPage {
                 p.begin();
                 p.end();
             }
-            this.el.querySelector('#rf-fs').textContent = '';
         }
         else if (mode == 'band') this.drawBand();
         else {
@@ -310,7 +308,7 @@ export class RfchPage {
                     const color = SYS_COLOR[s.sys] || FG;
                     const py = py0 + 12 + (k++) * 11;
                     const left = p.xp(f) > (x0 + x1) / 2;
-                    p.markPx(p.xp(f), py, 7, color);
+                    p.markPx(p.xp(f), py, 7, color, 1);
                     p.textPx(p.xp(f) + (left ? -6 : 6), py, s.sig, color,
                         left ? 'right' : 'left', 'middle');
                 }
@@ -321,7 +319,7 @@ export class RfchPage {
                     ...Object.values(this.sigs)).some(e => e.sys == s));
                 present.forEach((s, k) => {
                     const py = p.ax[1] + 14 + k * 13;
-                    p.markPx(p.ax[2] - 72, py, 7, SYS_COLOR[s] || FG);
+                    p.markPx(p.ax[2] - 72, py, 7, SYS_COLOR[s] || FG, 1);
                     p.textPx(p.ax[2] - 64, py, SYS_NAME[s], SYS_COLOR[s] ||
                         FG, 'left', 'middle');
                 });

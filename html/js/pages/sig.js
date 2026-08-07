@@ -98,35 +98,42 @@ export class SigPage {
             `<div class="toolbar">` +
             `<label class="ttl">Signal Options</label>` +
             `<span class="space"></span>` +
-            `<span class="warn-txt" id="sg-note"></span>` +
             `<button id="sg-all">Set All</button>` +
             `<button id="sg-none">Unset All</button>` +
             `<button id="sg-apply">Apply</button>` +
             `<button id="sg-reload">Reload</button>` +
             `</div>` +
             `<div class="cfg-body">` +
+            `<div class="warn-txt cfg-warn" id="sg-note"></div>` +
+            `<div class="sig-sec sig-hdr">` +
+            `<span class="sig-head">System</span>` +
+            `<span class="sig-sat">Satellite No</span>` +
+            `<span class="sig-sigs">GNSS Signals</span></div>` +
             Object.keys(SYS_SIGS).map(sys =>
                 `<div class="sig-sec" data-sys="${sys}">` +
                 `<label class="sig-head"><input type="checkbox" ` +
                 `class="sg-sys" checked> ${sys}</label>` +
-                `<label>SAT</label>` +
-                `<input type="text" class="sg-prn">` +
+                `<input type="text" class="sg-prn sig-sat">` +
                 `<span class="sig-grid">` +
                 SYS_SIGS[sys].map(sig =>
                     `<label class="sig-chk"><input type="checkbox" ` +
                     `class="sg-sig" data-sig="${sig}"> ${sig}</label>`
                 ).join('') + `</span></div>`).join('') +
+            `<div class="cfg-frm">` +
             `<div class="cfg-row"><label>RF CH Assignments</label>` +
             `<input type="text" id="sg-rfch" class="wide"></div>` +
             `<div class="cfg-note">RF CH Assignments: ` +
             `&lt;sig&gt;:&lt;ch&gt;[{,|-}&lt;ch&gt;...] ... (empty: auto) / ` +
-            `GLONASS SAT: fcns/slots</div>` +
+            `GLONASS SAT: fcns/slots</div></div>` +
             `</div>`;
         this.el.querySelector('#sg-apply').onclick = () => this.apply();
         this.el.querySelector('#sg-reload').onclick = () =>
             this.app.ws.get('cfg');
         this.el.querySelector('#sg-all').onclick = () => this.setAll(true);
         this.el.querySelector('#sg-none').onclick = () => this.setAll(false);
+        for (const e of this.el.querySelectorAll('.sg-sys')) {
+            e.onchange = () => this.updateEna();
+        }
         app.ws.on('cfg', (msg) => {
             if (this.active) this.populate(msg);
         });
@@ -134,22 +141,37 @@ export class SigPage {
             if (this.active) this.app.ws.get('cfg');
         });
     }
+    // satellite numbers and signals follow the system enable check ------------
+    updateEna() {
+        const dis = this.el.querySelector('#sg-apply').disabled;
+        for (const sec of this.el.querySelectorAll('.sig-sec[data-sys]')) {
+            const ena = sec.querySelector('.sg-sys').checked;
+            for (const e of sec.querySelectorAll('.sg-prn, .sg-sig')) {
+                e.disabled = dis || !ena;
+            }
+        }
+    }
     setEditable(ena, run) {
+        const dis = !ena || run;
         for (const id of ['#sg-apply', '#sg-all', '#sg-none']) {
-            this.el.querySelector(id).disabled = !ena || run;
+            this.el.querySelector(id).disabled = dis;
+        }
+        for (const e of this.el.querySelectorAll('.cfg-body input')) {
+            e.disabled = dis;
         }
         this.el.querySelector('#sg-note').textContent = !ena ?
-            'configuration not supported by the server' :
+            'Configuration not supported by the server' :
             run ? 'Stop the receiver to edit' : '';
+        this.updateEna();
     }
     setAll(ena) {
         for (const e of this.el.querySelectorAll('.sg-sig')) e.checked = ena;
         for (const e of this.el.querySelectorAll('.sg-sys')) e.checked = ena;
+        this.updateEna();
     }
     populate(cfg) {
-        this.setEditable(cfg.ena, cfg.run);
         this.el.querySelector('#sg-rfch').value = cfg.rfch;
-        for (const sec of this.el.querySelectorAll('.sig-sec')) {
+        for (const sec of this.el.querySelectorAll('.sig-sec[data-sys]')) {
             sec.querySelector('.sg-prn').value = DEF_SAT[sec.dataset.sys];
             sec.querySelector('.sg-sys').checked = false;
             for (const e of sec.querySelectorAll('.sg-sig')) e.checked = false;
@@ -159,7 +181,7 @@ export class SigPage {
         for (const ent of cfg.sigs.split(/\s+/)) {
             const [sig, prn] = ent.split(':');
             if (!sig || !prn) continue;
-            for (const sec of this.el.querySelectorAll('.sig-sec')) {
+            for (const sec of this.el.querySelectorAll('.sig-sec[data-sys]')) {
                 const sys = sec.dataset.sys;
                 if (!SYS_SIGS[sys].includes(sig)) continue;
                 const box = [...sec.querySelectorAll('.sg-sig')].find(
@@ -182,16 +204,22 @@ export class SigPage {
             this.el.querySelector('.sig-sec[data-sys=GLONASS] .sg-prn').value =
                 (gloFcn || '-7-6') + '/' + (gloSlot || '1-27');
         }
+        this.setEditable(cfg.ena, cfg.run);
     }
     apply() {
         const sigs = [];
-        for (const sec of this.el.querySelectorAll('.sig-sec')) {
-            if (!sec.querySelector('.sg-sys').checked) continue;
-            const sys = sec.dataset.sys;
-            const satno = sec.querySelector('.sg-prn').value.trim() ||
-                DEF_SAT[sys];
-            for (const e of sec.querySelectorAll('.sg-sig')) {
-                if (!e.checked) continue;
+        const secs = [...this.el.querySelectorAll('.sig-sec[data-sys]')];
+        const nsig = Math.max(...secs.map(
+            s => s.querySelectorAll('.sg-sig').length));
+        // signal index first, then system, as the Tk GUI assigns receiver CHs
+        for (let i = 0; i < nsig; i++) {
+            for (const sec of secs) {
+                if (!sec.querySelector('.sg-sys').checked) continue;
+                const e = sec.querySelectorAll('.sg-sig')[i];
+                if (!e || !e.checked) continue;
+                const sys = sec.dataset.sys;
+                const satno = sec.querySelector('.sg-prn').value.trim() ||
+                    DEF_SAT[sys];
                 const prns = sat2prns(sys, e.dataset.sig, satno);
                 if (prns) sigs.push(e.dataset.sig + ':' + prns);
             }
