@@ -26,13 +26,16 @@ WARNOPT = -Wall -Wno-unused-but-set-variable
 
 CFLAGS = -O3 $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 
+# relink when a linked library is rebuilt
+LIBDEP = $(filter %.a,$(LDLIBS))
+
 TARGET = str2str
 
 all  : $(TARGET)
 
 str2str    : str2str.o
 
-str2str.o  : $(LIB)/RTKLIB/src/rtklib.h
+str2str.o  : $(LIB)/RTKLIB/src/rtklib.h $(LIBDEP)
 
 install:
 	cp $(TARGET) $(BIN)

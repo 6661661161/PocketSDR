@@ -1,7 +1,7 @@
 # Pocket SDR Command Reference
 
 <div style="text-align: right;">
-<strong>ver.0.19  2026-08-07</strong>
+<strong>ver.0.20  2026-08-07</strong>
 </div>
 
 ---
@@ -474,6 +474,67 @@ pocket_web -web 0.0.0.0:8080
 stops it with SIGQUIT, which reaches a native Windows process as
 CTRL_BREAK_EVENT; a plain `kill` is `TerminateProcess()` and would leave the
 RF frontend streaming, which needs a USB reset to recover.
+
+### HTTPS with a Reverse Proxy (reference)
+
+The Web UI has neither TLS nor authentication of its own. For access outside
+a trusted LAN, keep `pocket_web` bound to loopback and put a reverse proxy in
+front of it. The proxy only has to forward the WebSocket upgrade; everything
+else is plain HTTP proxying.
+
+```
+pocket_web -web 8080          # loopback only; the proxy is the only client
+```
+
+Caddy [1] issues and renews the certificate itself and forwards WebSockets
+without extra configuration:
+
+```
+sdr.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+nginx [2] needs the upgrade headers passed through explicitly:
+
+```
+server {
+    listen 443 ssl;
+    server_name sdr.example.com;
+    ssl_certificate     /etc/letsencrypt/live/sdr.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sdr.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host       $host;
+        proxy_read_timeout 3600s;   # the monitor WebSocket is long-lived
+    }
+}
+```
+
+Notes:
+
+- Add authentication at the proxy (`auth_basic` for nginx, `basic_auth` for
+  Caddy). TLS alone only hides the traffic; anyone reaching the proxy can
+  still start, stop and reconfigure the receiver.
+- `proxy_read_timeout` has to outlast an idle WebSocket. The default 60 s is
+  enough while a page pushes data, but a client sitting on a page with no
+  subscription would be disconnected.
+- The browser upgrades to `wss:` by itself, since the Web UI derives the
+  WebSocket scheme from the page URL. No option change is needed.
+- A public certificate needs a public domain name. On a closed LAN, use a
+  local CA instead, such as Caddy's internal CA (`tls internal`) or
+  mkcert [3]; certbot [4] is the usual client for public certificates.
+
+References:
+
+- [1] Caddy, reverse_proxy directive, https://caddyserver.com/docs/caddyfile/directives/reverse_proxy
+- [2] NGINX, WebSocket proxying, https://nginx.org/en/docs/http/websocket.html
+- [3] mkcert, locally-trusted development certificates, https://github.com/FiloSottile/mkcert
+- [4] certbot, https://certbot.eff.org/
 
 
 <div class="pagebreak"></div>

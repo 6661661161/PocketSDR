@@ -26,6 +26,8 @@ export class RfchPage {
         this.nch = 0;
         this.sigs = {};   // RF CH -> [{sig, sys}]
         this.chs = [];    // rfch_stat entries
+        this.psdMsg = {}; // last psd message by RF CH (to redraw on resize)
+        this.histMsg = null; // last hist message
         this.el = document.createElement('div');
         this.el.innerHTML =
             `<div class="toolbar">` +
@@ -95,6 +97,8 @@ export class RfchPage {
             if (!msg.run) { // clear the plots on receiver stop
                 this.sigs = {};
                 this.chs = [];
+                this.psdMsg = {};
+                this.histMsg = null;
                 if (this.active) this.clear();
             }
             if (this.active) {
@@ -218,6 +222,7 @@ export class RfchPage {
     }
     updatePsd(msg) {
         if (!this.active) return;
+        this.psdMsg[msg.rfch] = msg;
         const mode = this.mode();
         if (mode == 'single' && msg.rfch == this.rfch()) {
             this.bits = msg.bits;
@@ -231,8 +236,9 @@ export class RfchPage {
         }
     }
     updateHist(msg) {
-        if (!this.active || this.mode() != 'single' ||
-            msg.rfch != this.rfch()) return;
+        if (!this.active) return;
+        this.histMsg = msg;
+        if (this.mode() != 'single' || msg.rfch != this.rfch()) return;
         const b = Math.min(this.bits, 4);
         for (const i of [0, 1]) {
             const p = this.histPlot[i];
@@ -256,6 +262,12 @@ export class RfchPage {
             p.textPx(p.ax[2] - 8, p.ax[1] + 24,
                 'Std: ' + Math.sqrt(vari).toFixed(2), FG, 'right', 'middle');
         }
+    }
+    // redraw the current view from the last received data ---------------------
+    redraw() { // on resize
+        this.clear(); // axes only where no data has arrived yet
+        for (const rfch in this.psdMsg) this.updatePsd(this.psdMsg[rfch]);
+        if (this.histMsg) this.updateHist(this.histMsg);
     }
     // draw all plots of the current view empty (axes only) --------------------
     clear() {

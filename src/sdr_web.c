@@ -19,6 +19,7 @@
 #else
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/resource.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -47,6 +48,7 @@
 #define JSON_BUFF_SIZE (STAT_BUFF_SIZE*2+1024) // JSON buffer size (bytes)
 #define BIN_BUFF_SIZE  (1<<16)  // binary frame buffer size (bytes)
 #define LOG_BUFF_SIZE  (2<<18)  // receiver log read buffer size (bytes)
+#define CPU_POLL_CYC   1000     // CPU load measurement cycle (ms)
 #define MAX_NFFT       4096     // max PSD FFT points
 #define MAX_LOG_LINES  2000     // receiver log ring size (lines)
 #define MAX_LOG_SEND   200      // max log lines per push
@@ -140,6 +142,9 @@ struct sdr_web_tag {            // Web UI server type
     char *log_lines[MAX_LOG_LINES]; // receiver log ring
     int log_cnt;                // total log lines added
     uint32_t log_tick;          // last log polling tick (ms)
+    uint32_t cpu_tick;          // last CPU load measurement tick (ms)
+    double cpu_time;            // process CPU time at the measurement (s)
+    double cpu_load;            // process CPU load (%)
     char *log_buff;             // receiver log read buffer
     char *stat_buff;            // channel status buffer
     char *json_buff;            // JSON encode buffer
@@ -148,6 +153,58 @@ struct sdr_web_tag {            // Web UI server type
     sdr_cpx_t *hist_P;          // correlator history buffer
     sdr_thread_t thread;        // server thread
 };
+
+// process CPU time (s) --------------------------------------------------------
+static double cpu_time(void)
+{
+#ifdef WIN32
+    FILETIME ct, et, kt, ut;
+
+    if (!GetProcessTimes(GetCurrentProcess(), &ct, &et, &kt, &ut)) return 0.0;
+    ULARGE_INTEGER k, u;
+    k.LowPart = kt.dwLowDateTime;
+    k.HighPart = kt.dwHighDateTime;
+    u.LowPart = ut.dwLowDateTime;
+    u.HighPart = ut.dwHighDateTime;
+    return (double)(k.QuadPart + u.QuadPart) * 1e-7; // 100 ns units
+#else
+    struct rusage ru;
+
+    if (getrusage(RUSAGE_SELF, &ru)) return 0.0;
+    return ru.ru_utime.tv_sec + ru.ru_utime.tv_usec * 1e-6 +
+           ru.ru_stime.tv_sec + ru.ru_stime.tv_usec * 1e-6;
+#endif // WIN32
+}
+
+// number of CPU cores ---------------------------------------------------------
+static int cpu_cores(void)
+{
+#ifdef WIN32
+    SYSTEM_INFO si;
+
+    GetSystemInfo(&si);
+    return si.dwNumberOfProcessors > 0 ? (int)si.dwNumberOfProcessors : 1;
+#else
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+
+    return n > 0 ? (int)n : 1;
+#endif // WIN32
+}
+
+// update process CPU load (% of all cores) ------------------------------------
+static void update_cpu_load(sdr_web_t *web, uint32_t tick)
+{
+    double t = cpu_time();
+    double dt = (double)(int32_t)(tick - web->cpu_tick) * 1e-3;
+
+    if (dt > 0.0) {
+        web->cpu_load = (t - web->cpu_time) / dt / cpu_cores() * 100.0;
+        if (web->cpu_load < 0.0) web->cpu_load = 0.0;
+        if (web->cpu_load > 100.0) web->cpu_load = 100.0;
+    }
+    web->cpu_time = t;
+    web->cpu_tick = tick;
+}
 
 // compare strings ignoring case -----------------------------------------------
 static int str_ncmp_i(const char *a, const char *b, int n)
@@ -562,8 +619,9 @@ static void send_rcv_stat(sdr_web_t *web, web_cli_t *cli)
     sdr_rcv_str_stat(run_rcv(web), strs);
     jsn_esc(esc, sizeof(esc), stat);
     snprintf(buff, sizeof(buff), "{\"type\":\"rcv_stat\",\"str\":\"%s\","
-        "\"strs\":[%d,%d,%d,%d,%d,%d,%d,%d]}", esc, strs[0], strs[1], strs[2],
-        strs[3], strs[4], strs[5], strs[6], strs[7]);
+        "\"strs\":[%d,%d,%d,%d,%d,%d,%d,%d],\"cpu\":%.1f}", esc, strs[0],
+        strs[1], strs[2], strs[3], strs[4], strs[5], strs[6], strs[7],
+        web->cpu_load);
     ws_send_text(cli, buff);
 }
 
@@ -1710,6 +1768,9 @@ static void *web_thread(void *arg)
             poll_log(web);
             web->log_tick = tick;
         }
+        if ((int32_t)(tick - web->cpu_tick) >= CPU_POLL_CYC) {
+            update_cpu_load(web, tick);
+        }
         int run = run_rcv(web) ? 1 : 0; // report stop at end of IF data file
         if (run != web->run) {
             web->run = run;
@@ -1834,7 +1895,8 @@ sdr_web_t *sdr_web_start(sdr_rcv_t *rcv, const char *addr, int port,
         web->cli[i].outb = (uint8_t *)sdr_malloc(OUT_BUFF_SIZE);
         web->cli[i].sock = INVALID_SOCKET;
     }
-    web->log_tick = sdr_get_tick();
+    web->log_tick = web->cpu_tick = sdr_get_tick();
+    web->cpu_time = cpu_time();
     web->run = rcv && rcv->state ? 1 : 0;
     get_opts(web->opts_def); // system option values to restore by default
     web->state = 1;

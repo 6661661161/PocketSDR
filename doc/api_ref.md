@@ -1,7 +1,7 @@
 # Pocket SDR C Library API Reference
 
 <div style="text-align: right;">
-<strong>ver.0.19  2026-08-07</strong>
+<strong>ver.0.20  2026-08-07</strong>
 </div>
 
 ---

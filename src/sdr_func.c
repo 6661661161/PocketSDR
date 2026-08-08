@@ -62,6 +62,7 @@
 //                   remove API sdr_corr_std_cpx_code()
 //  2026-07-24  1.30 support multiple log streams
 //                   add API sdr_log_add_str(), sdr_log_rm_str()
+//  2026-08-08  1.31 fix memory leak of stream in sdr_str_close()
 //
 #include <math.h>
 #include <stdarg.h>
@@ -1530,6 +1531,7 @@ void sdr_str_close(stream_t *str)
 {
     if (!str) return;
     strclose(str);
+    sdr_free(str); // allocated by sdr_str_open()
 }
 
 // write stream ----------------------------------------------------------------

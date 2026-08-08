@@ -1,6 +1,6 @@
 # Web UI Design (sdr_web, pocket_web)
 
-Date: 2026-08-01 (updated 2026-08-07)
+Date: 2026-08-08
 
 ----
 
@@ -183,8 +183,8 @@ typedef struct {
   new parameters is the way to change them).
 - `unsub` removes it. All subscriptions die with the connection.
 - `get` performs a one-shot sample of a topic without subscribing.
-- The scheduler skips (does not queue) a topic whose previous frame is still
-  stuck in the socket buffer: latest-data-wins, no unbounded queues. Send is
+- The scheduler skips (does not queue) a topic push while more than 32 KB is
+  still pending for that client: latest-data-wins, no unbounded queues. Send is
   non-blocking with a 256 KB per-client output buffer; a client that stays
   blocked past that is dropped.
 
@@ -198,7 +198,7 @@ they are already the de-facto GUI API).
 
 | topic       | source API                                   | payload  | default cyc |
 |-------------|----------------------------------------------|----------|-------------|
-| `rcv_stat`  | `sdr_rcv_rcv_stat()` + `sdr_rcv_str_stat()`  | JSON     | 200 ms      |
+| `rcv_stat`  | `sdr_rcv_rcv_stat()` + `sdr_rcv_str_stat()` + CPU load | JSON | 200 ms |
 | `ch_stat`   | `sdr_rcv_ch_stat()` (sys/chno/min_lock/rfch/opt from sub) | JSON | 200 ms |
 | `sat_stat`  | `sdr_rcv_sat_stat()` per sat in `sats` param | JSON     | 200 ms      |
 | `pvt_sol`   | `sdr_rcv_pvt_sol()`                          | JSON     | 200 ms      |
@@ -218,6 +218,16 @@ Notes:
   allocated once in `sdr_web_t` (`sdr_malloc()`), same sizing as the Python
   GUI, not the small static buffer the console status display of `pocket_trk`
   uses.
+- `rcv_stat` carries the process CPU load in `cpu`, measured by the server
+  thread once a second from the process CPU time (`GetProcessTimes()` on
+  Windows, `getrusage()` elsewhere) over the elapsed wall time, divided by the
+  number of cores. 100 % therefore means every core is saturated, so the value
+  answers "does this machine keep up?" rather than "how busy is one core?".
+  It is measured once and shared, so all clients see the same value.
+- `rcv_stat` also carries the per-stream status in `strs` (-1: error, 0: close,
+  1: wait, 2: connect, 3: active) as the Receiver page LEDs. -1 covers an
+  output stream that failed to open, which stays in the slot as a status
+  carrier without a stream (`sdr_rcv_str_stat()`).
 - `psd` samples `sdr_rcv_rfch_psd(rcv, ch, tave, nfft, psd)` with `tave` and
   `nfft` (default 2048) from the subscription; returns N/2 bins for I
   sampling, N for IQ.
@@ -225,6 +235,9 @@ Notes:
   n = min(tspan/T, 5000) points.
 - 10 Hz for `psd`/`corr`/`corr_hist` satisfies requirement (4); `cyc` is
   clamped to >= 50 ms so a client cannot exceed the Python GUI's UD_CYCLE1.
+- The `default cyc` column is what the Web UI subscribes with. A `sub` that
+  omits `cyc` falls back to 100 ms for the JSON topics and 50 ms for the
+  binary ones.
 
 ### Commands
 
@@ -322,8 +335,9 @@ frames are little-endian (both supported hosts are LE).
 On WebSocket open the server sends:
 
 ```json
-{"type":"hello","name":"Pocket SDR","ver":"0.14","proto":1,
- "nrfch":2,"narch":0,"nch":121,"fs":24000000.0,"sel_ch":0}
+{"type":"hello","name":"Pocket SDR","ver":"0.20","proto":1,
+ "nrfch":2,"narch":0,"nch":121,"fs":24000000.0,"sel_ch":0,
+ "run":1,"cfg_ena":1}
 ```
 
 ### Client to server (JSON)
@@ -348,7 +362,8 @@ required, which keeps the embedded JSON parser minimal (~100 lines).
 ### Server to client (JSON)
 
 ```json
-{"type":"rcv_stat","str":"...one line...","strs":[3,0,0,0,0,0,0,0]}
+{"type":"rcv_stat","str":"...one line...","strs":[3,0,0,0,0,0,0,0],
+ "cpu":12.3}
 {"type":"ch_stat","str":"header\ncolumns\nCH lines..."}
 {"type":"pvt_sol","str":"2026-08-01 12:34:56.0 ..."}
 {"type":"sat_stat","sats":[{"sat":"G01","az":123.4,"el":45.6,"pvt":1,
@@ -473,8 +488,10 @@ All four phases below are implemented.
 
 Phase 1:
 
-- **Shell**: title bar with receiver name/version (from `hello`), tab bar,
-  status bar (message + `Time: xxx s` from `rcv_stat`).
+- **Shell**: title bar with receiver name/version (from `hello`), command
+  buttons and a connection indicator that blinks at 1 Hz while the receiver
+  runs (`run` of `hello`), tab bar, status bar (message +
+  `CPU: xx.x %  Time: xxx s` from `rcv_stat`).
 - **Receiver**: text status table (2 columns x 11 rows, same labels as
   `update_rcv_stat()`), output-stream LEDs, PVT solution line. No sky plot /
   C/N0 bar yet.
@@ -512,13 +529,17 @@ its three panels.
 
 Ported from the Tk GUI so both frontends look alike:
 
-- Background `#F8F8F8` / plot background `white`, frame and tick `#555555`,
-  grid `#E4E4E4`, primary plot `#003020`, secondary `#888844`, reference
-  `#BBBBBB`, warning `#FF4000`.
+- Page background `#F0F0F0` / plot background `#FFFFFF`, frame and tick
+  `#555555`, grid `#CCCCCC`, primary plot `#003020`, secondary `#888844`,
+  reference `#BBBBBB`, warning `#FF4000`.
 - Satellite system colors: G `#006600`, R `#EE9900`, E `#CC00CC`,
   J `#0000AA`, C `#CC0000`, I `#007777`, S `#777777` (+ pale variants).
-- Fonts: `Tahoma, "DejaVu Sans", sans-serif` at 12px; tables/log in
-  `Consolas, "DejaVu Sans Mono", monospace`. Numeric cells right-aligned.
+- Fonts: `"DejaVu Sans", "Noto Sans", sans-serif` at 10px, 9px for tables and
+  plot labels; tables and log in `"DejaVu Sans Mono", "Noto Sans Mono",
+  monospace`. Numeric cells right-aligned.
+- The theme is a set of `:root` custom properties in `css/style.css`; the plot
+  library takes its fonts from there through `cssVar()` and keeps its colors
+  as its own constants.
 - Base layout 800x600, fully responsive via flex/grid.
 
 ## pocket_web AP
@@ -569,9 +590,12 @@ and would leave the frontend streaming.
   prototypes.
 - `app/pocket_web/makefile`: new, a copy of the `pocket_trk` one with a
   single target (links `libsdr.a`; `-lws2_32` is already present on Windows).
-- `test/utest/makefile`: optional `test_sdr_web` exercising the server on an
-  ephemeral port with a minimal HTTP/WS client (handshake, frame round-trip,
-  JSON command -> ack), avoiding test-only hooks in the source.
+- `test/utest/makefile`: `test_sdr_web` exercises the server over a real
+  loopback socket with a minimal HTTP/WS client — start/stop, static serving
+  (200 / 404 / path traversal), the RFC 6455 handshake and `hello`, commands
+  and `ack`, the configuration defaults and their round trip through the
+  settings file, and `sdr_web_start_rcv()` — avoiding test-only hooks in the
+  source.
 
 ## Performance Estimates
 
@@ -598,8 +622,8 @@ web server runs on its own thread and only reads).
 
 ## Security Considerations
 
-- Binds 127.0.0.1 by default; `-web 0.0.0.0:port` prints a warning that the
-  interface is unauthenticated.
+- Binds 127.0.0.1 when `-web` gives a port alone, so exposing the interface
+  is an explicit act (`-web 0.0.0.0:port`). No warning is printed for it.
 - No TLS/auth in scope; for remote access, front with a reverse proxy
   (nginx/caddy) providing HTTPS + auth. WSS works transparently through such
   a proxy.

@@ -7,6 +7,7 @@ void test_sdr_usb_stub_reset(void);
 void test_sdr_usb_stub_set_req_status(int status);
 void test_sdr_usb_stub_set_stat(const uint8_t stat[6]);
 void test_sdr_usb_stub_set_reg(int ch, int addr, const uint8_t data[4]);
+int test_sdr_usb_stub_reset_count(void);
 
 // open mock USB device --------------------------------------------------------
 static sdr_usb_t *open_mock_usb(void)
@@ -122,10 +123,26 @@ static void test_sdr_usb_req_control(void)
     sdr_usb_close(usb);
 }
 
+// sdr_usb_reset() ------------------------------------------------------------
+static void test_sdr_usb_reset(void)
+{
+    sdr_usb_t *usb;
+
+    test_sdr_usb_stub_reset();
+    usb = open_mock_usb();
+    TEST_ASSERT_EQ_INT(0, test_sdr_usb_stub_reset_count());
+    TEST_ASSERT_EQ_INT(1, sdr_usb_reset(usb));
+    TEST_ASSERT_EQ_INT(1, test_sdr_usb_stub_reset_count());
+    sdr_usb_close(usb);
+
+    TEST_ASSERT_EQ_INT(0, sdr_usb_reset(NULL)); // NULL is an error
+}
+
 // main ------------------------------------------------------------------------
 int main(void)
 {
     TEST_RUN(test_sdr_usb_open_close);
+    TEST_RUN(test_sdr_usb_reset);
     TEST_RUN(test_sdr_usb_req_status);
     TEST_RUN(test_sdr_usb_req_register);
     TEST_RUN(test_sdr_usb_req_control);

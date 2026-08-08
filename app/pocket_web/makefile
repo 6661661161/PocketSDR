@@ -58,13 +58,16 @@ WARNOPT = -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-unused-f
 
 CFLAGS = -O3 $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 
+# relink when a linked library is rebuilt
+LIBDEP = $(filter %.a,$(LDLIBS))
+
 TARGET = pocket_web
 
 all: $(TARGET)
 
-pocket_web: pocket_web.o $(LIBSDR)
+pocket_web: pocket_web.o
 
-pocket_web.o: $(SRC)/pocket_sdr.h
+pocket_web.o: $(SRC)/pocket_sdr.h $(LIBDEP)
 
 clean:
 	rm -f $(TARGET) *.exe *.o *.obj *.stackdump

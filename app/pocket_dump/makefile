@@ -59,13 +59,16 @@ WARNOPT = -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter
 
 CFLAGS = -O3 $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 
+# relink when a linked library is rebuilt
+LIBDEP = $(filter %.a,$(LDLIBS))
+
 TARGET = pocket_dump
 
 all: $(TARGET)
 
 pocket_dump: pocket_dump.o
 
-pocket_dump.o: $(SRC)/pocket_sdr.h
+pocket_dump.o: $(SRC)/pocket_sdr.h $(LIBDEP)
 
 clean:
 	rm -f $(TARGET) *.exe *.o *.obj *.stackdump

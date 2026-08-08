@@ -44,13 +44,16 @@ WARNOPT = -Wall -Wextra -Wno-unused-parameter
 #CFLAGS = -O3 -march=native $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 CFLAGS = -O3 $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 
+# relink when a linked library is rebuilt
+LIBDEP = $(filter %.a,$(LDLIBS))
+
 TARGET = pocket_acq
 
 all: $(TARGET)
 
 pocket_acq: pocket_acq.o
 
-pocket_acq.o: $(SRC)/pocket_sdr.h
+pocket_acq.o: $(SRC)/pocket_sdr.h $(LIBDEP)
 
 clean:
 	rm -f $(TARGET) *.exe *.o *.obj *.stackdump

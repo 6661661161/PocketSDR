@@ -44,13 +44,16 @@ WARNOPT = -Wall -Wextra -Wno-unused-parameter -Wno-unused-but-set-variable
 #CFLAGS = -O3 -march=native $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 CFLAGS = -O3 $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 
+# relink when a linked library is rebuilt
+LIBDEP = $(filter %.a,$(LDLIBS))
+
 TARGET = pocket_snap
 
 all: $(TARGET)
 
 pocket_snap: pocket_snap.o
 
-pocket_snap.o: $(SRC)/pocket_sdr.h
+pocket_snap.o: $(SRC)/pocket_sdr.h $(LIBDEP)
 
 clean:
 	rm -f $(TARGET) *.exe *.o *.obj *.stackdump

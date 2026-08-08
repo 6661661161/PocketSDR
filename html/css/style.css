@@ -15,13 +15,13 @@
     --dis: #999999;   /* disable color */
     --act: #0f64ed;   /* active color */
     --bd: 1px solid #CCCCCC; /* border color */
-    --font: 10px "Noto Sans", sans-serif;
-    --mono: 10px "Noto Sans Mono", monospace;
-    --plot-font: 9px "Noto Sans", sans-serif;
-    --plot-title-font: bold 10px "Noto Sans", sans-serif;
-    --sky-sat-font: 9px "Noto Sans", sans-serif;
+    --font: 10px "DejaVu Sans", "Noto Sans", sans-serif;
+    --mono: 10px "DejaVu Sans Mono", "Noto Sans Mono", monospace;
+    --plot-font: 9px "DejaVu Sans", "Noto Sans", sans-serif;
+    --plot-title-font: bold 10px "DejaVu Sans", "Noto Sans", sans-serif;
+    --sky-sat-font: 9px "DejaVu Sans", "Noto Sans", sans-serif;
     --sky-sat-size: 9px;
-    --tbl-font: 9px "Noto Sans", sans-serif;
+    --tbl-font: 9px "DejaVu Sans", "Noto Sans", sans-serif;
 }
 
 /* Base ----------------------------------------------------------------------*/
@@ -99,6 +99,14 @@ button:disabled {
 }
 .conn-off {
     color: var(--warn);
+}
+.conn-run { /* blink at 1 Hz while the receiver is running */
+    animation: conn-blink 1s steps(1, end) infinite;
+}
+@keyframes conn-blink {
+    0%   { color: #008800; }
+    90%  { color: #00EE00; }
+    100% { color: #008800; }
 }
 
 /* tab bar -------------------------------------------------------------------*/
@@ -241,11 +249,11 @@ button:disabled {
 /* Receiver page -------------------------------------------------------------*/
 .rcv-main {
     display: grid;
-    grid-template-rows: 1fr minmax(180px, 47%);
+    grid-template-rows: 1fr minmax(60px, 47%);
 }
 .rcv-top {
     display: grid;
-    grid-template-columns: 1fr minmax(180px, 33%);
+    grid-template-columns: 1fr minmax(100px, 33%);
     min-height: 0;
     overflow: hidden;
 }
@@ -287,8 +295,11 @@ button:disabled {
     color: var(--warn);
     font-weight: bold;
 }
+#rcv-leds { /* center the LEDs in the toolbar instead of on the text baseline */
+    display: flex;
+    align-items: center;
+}
 .led {
-    display: inline-block;
     width: 6px;
     height: 11px;
     margin-left: 1px;

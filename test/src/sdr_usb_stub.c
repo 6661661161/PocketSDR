@@ -5,6 +5,7 @@
 
 static int stub_usb_req_status = 0;
 static int stub_usb_save_count = 0;
+static int stub_usb_reset_count = 0;
 static uint8_t stub_usb_stat[6] = {0};
 static uint8_t stub_usb_regs[SDR_MAX_RFCH][SDR_MAX_REG][4] = {{{0}}};
 
@@ -12,6 +13,7 @@ void test_sdr_usb_stub_reset(void)
 {
     stub_usb_req_status = 0;
     stub_usb_save_count = 0;
+    stub_usb_reset_count = 0;
     memset(stub_usb_stat, 0, sizeof(stub_usb_stat));
     memset(stub_usb_regs, 0, sizeof(stub_usb_regs));
 }
@@ -46,6 +48,11 @@ int test_sdr_usb_stub_save_count(void)
     return stub_usb_save_count;
 }
 
+int test_sdr_usb_stub_reset_count(void)
+{
+    return stub_usb_reset_count;
+}
+
 sdr_usb_t *sdr_usb_open(int bus, int port, const uint16_t *vid,
     const uint16_t *pid, int n)
 {
@@ -62,6 +69,13 @@ sdr_usb_t *sdr_usb_open(int bus, int port, const uint16_t *vid,
 void sdr_usb_close(sdr_usb_t *usb)
 {
     sdr_free(usb);
+}
+
+int sdr_usb_reset(sdr_usb_t *usb)
+{
+    if (!usb) return 0;
+    stub_usb_reset_count++;
+    return 1;
 }
 
 int sdr_usb_req(sdr_usb_t *usb, int mode, uint8_t req, uint16_t val,

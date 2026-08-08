@@ -179,6 +179,9 @@ export class SolPage {
             p.end();
         }
     }
+    redraw() { // on resize
+        this.render();
+    }
     show() {
         this.active = true;
         this.setMode();

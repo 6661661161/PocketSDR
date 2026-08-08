@@ -15,7 +15,7 @@ import {OptsPage} from './pages/opts.js';
 import {HelpPage} from './pages/help.js';
 import {LogPage} from './pages/log.js';
 
-// connection indicator icons (colored by the conn-on / conn-off class) --------
+// connection indicator icons (styled by the conn-on/off/run classes) ----------
 const ICON_ON =
     '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">' +
     '<circle cx="8" cy="8" r="3.4" fill="currentColor"/>' +
@@ -34,10 +34,21 @@ const ws = new WsClient();
 // shared application state ----------------------------------------------------
 const app = {
     ws: ws,
-    info: {nrfch: 1, narch: 0, nch: 0, fs: 0, name: 'Pocket SDR', ver: ''},
+    info: {nrfch: 1, narch: 0, nch: 0, fs: 0, name: 'Pocket SDR', ver: '',
+        run: 0},
     msg: (s) => { document.getElementById('msg1').textContent = s; },
     selectCorrCh: (ch) => {} // set after pages are built
 };
+
+// connection indicator: WebSocket state, blinking while the receiver runs -----
+function setConn(on) {
+    const conn = document.getElementById('conn');
+    const run = on && app.info.run;
+    conn.innerHTML = on ? ICON_ON : ICON_OFF;
+    conn.title = !on ? 'OFFLINE' : run ? 'CONNECTED (RUN)' :
+        'CONNECTED (STOP)';
+    conn.className = (on ? 'conn-on' : 'conn-off') + (run ? ' conn-run' : '');
+}
 
 // update shared info first, before any page hello handler runs ----------------
 ws.on('hello', (msg) => {
@@ -45,6 +56,7 @@ ws.on('hello', (msg) => {
     document.getElementById('logo').title = msg.name + ' ver.' + msg.ver;
     document.getElementById('btn-start').disabled = !msg.cfg_ena || msg.run;
     document.getElementById('btn-stop').disabled = !msg.cfg_ena || !msg.run;
+    setConn(true);
 });
 
 // pages -----------------------------------------------------------------------
@@ -99,24 +111,31 @@ pages.forEach((p, i) => {
     pagesEl.appendChild(p.page.el);
 });
 
+// redraw the current page on resize (a canvas is scaled as an image otherwise)
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+    if (resizeTimer) return;
+    resizeTimer = setTimeout(() => {
+        resizeTimer = null;
+        if (cur >= 0 && pages[cur].page.redraw) pages[cur].page.redraw();
+    }, 100);
+});
+
 // WebSocket handlers ----------------------------------------------------------
 ws.on('open', () => {
-    const conn = document.getElementById('conn');
-    conn.innerHTML = ICON_ON;
-    conn.title = 'CONNECTED';
-    conn.className = 'conn-on';
+    setConn(true);
     app.msg('Connected to receiver.');
 });
 ws.on('close', () => {
-    const conn = document.getElementById('conn');
-    conn.innerHTML = ICON_OFF;
-    conn.title = 'OFFLINE';
-    conn.className = 'conn-off';
+    app.info.run = 0; // unknown until the next hello
+    setConn(false);
     app.msg('Connection lost. Reconnecting...');
 });
 ws.on('rcv_stat', (msg) => {
     const f = msg.str.split(/\s+/);
-    document.getElementById('msg2').textContent = 'Time: ' + f[0] + ' s';
+    document.getElementById('msg2').textContent =
+        (msg.cpu === undefined ? '' :
+        'CPU: ' + msg.cpu.toFixed(1) + ' % ') + 'Time: ' + f[0] + ' s';
 });
 ws.on('ack', (msg) => {
     if (!msg.ok) {
@@ -143,7 +162,7 @@ document.getElementById('btn-out').onclick = () => selPage(8);
 document.getElementById('btn-sig').onclick = () => selPage(9);
 document.getElementById('btn-sys').onclick = () => selPage(10);
 document.getElementById('btn-help').onclick = () => selPage(11);
-document.getElementById('conn').innerHTML = ICON_OFF;
+setConn(false);
 
 const hash = ['receiver', 'rfch', 'bbch', 'corr', 'sats', 'sol', 'array',
     'inp', 'out', 'sig', 'opts', 'help', 'log'].indexOf(location.hash.slice(1));

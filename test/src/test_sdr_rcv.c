@@ -245,6 +245,44 @@ static void test_sdr_rcv_multi_str_api(void)
     cleanup_files();
 }
 
+// test output stream open error -----------------------------------------------
+static void test_sdr_rcv_str_error_api(void)
+{
+    sdr_rcv_t *rcv = new_rcv_empty(SDR_FMT_INT8, 4e6, "");
+    sdr_dev_t *dev = sdr_dev_open(-1, -1);
+    int types[SDR_MAX_STR] = {
+        SDR_STR_NMEA, SDR_STR_LOG, 0, 0, 0, 0, 0, 0
+    };
+    // a directory cannot be opened as a file (a missing one would be created)
+    const char *paths[SDR_MAX_STR] = {
+        ".", TMP_LOG1, "", "", "", "", "", ""
+    };
+    int stat[SDR_MAX_STR] = {0};
+    uint8_t data[] = "$GNRMC,TEST";
+    
+    remove(TMP_LOG1);
+    TEST_ASSERT_EQ_INT(1, sdr_rcv_start(rcv, SDR_DEV_USB, dev, types, paths));
+    
+    // the type is kept without a stream to report the open error
+    TEST_ASSERT_TRUE(rcv->strs[0] == NULL);
+    TEST_ASSERT_EQ_INT(SDR_STR_NMEA, rcv->str_type[0]);
+    sdr_rcv_str_stat(rcv, stat);
+    TEST_ASSERT_EQ_INT(-1, stat[0]);
+    TEST_ASSERT_TRUE(stat[1] > 0);
+    TEST_ASSERT_EQ_INT(0, stat[2]);
+    
+    // a stream failed to open is not written to
+    TEST_ASSERT_EQ_INT(0, sdr_rcv_write_str(rcv, SDR_STR_NMEA, data,
+        (int)sizeof(data)));
+    sdr_rcv_stop(rcv);
+    TEST_ASSERT_EQ_INT(SDR_STR_NONE, rcv->str_type[0]);
+    
+    sdr_rcv_free(rcv);
+    sdr_dev_close(dev);
+    remove(TMP_LOG1);
+    cleanup_files();
+}
+
 // test sdr_rcv_setopt() -------------------------------------------------------
 static void test_sdr_rcv_setopt_api(void)
 {
@@ -427,6 +465,7 @@ int main(void)
     TEST_RUN(test_sdr_rcv_start_stop_api);
     TEST_RUN(test_sdr_rcv_open_close_api);
     TEST_RUN(test_sdr_rcv_multi_str_api);
+    TEST_RUN(test_sdr_rcv_str_error_api);
     TEST_RUN(test_sdr_rcv_setopt_api);
     TEST_RUN(test_sdr_rcv_status_api);
     TEST_RUN(test_sdr_rcv_rfch_data_api);

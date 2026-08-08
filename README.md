@@ -1,8 +1,8 @@
 
-# **Pocket SDR - An Open-Source GNSS SDR,<br> ver. 0.19**
+# **Pocket SDR - An Open-Source GNSS SDR,<br> ver. 0.20**
 
 <div style="text-align: right;">
-<strong>2026-07-24</strong>
+<strong>2026-08-08</strong>
 </div>
 
 ---
@@ -101,11 +101,13 @@ PocketSDR
 │   ├── pocket_scan  # Scan and list USB devices
 │   ├── pocket_acq   # GNSS signal acquisition
 │   ├── pocket_trk   # GNSS signal tracking and PVT generation
+│   ├── pocket_web   # GNSS receiver server with Web UI
 │   ├── pocket_snap  # Snapshot Positioning
 │   ├── pocket_calib # Antenna array attitude / per-CH bias calibration
 │   ├── convbin      # RINEX converter supporting Pocket SDR
 │   └── str2str      # Stream converter (RTKLIB-derived)
 ├── src         # Pocket SDR library source programs
+├── html        # Web UI files served by pocket_web (JS + CSS, no build step)
 ├── python      # Pocket SDR Python scripts (incl. pocket_sdr.py GUI)
 ├── lib         # Libraries for APs and Python scripts
 │   ├── win32        # Built libraries for Windows (UCRT64)
@@ -488,6 +490,7 @@ Pocket SDR also provides the following GNSS SDR APs:
 - **pocket_acq**    : A C-version of pocket_acq.py (w/o graphical plots).
 - **pocket_trk**    : A C-version of pocket_trk.py (w/o graphical plots).
 - **pocket_snap**   : A C-version of pocket_snap.py.
+- **pocket_web**    : A GNSS SDR receiver server controlled from a Web UI.
 
 For more details about these utilities and APs, please refer to [**Pocket SDR Command References**](https://github.com/tomojitakasu/PocketSDR/blob/master/doc/command_ref.pdf).
 
@@ -506,6 +509,52 @@ $ sudo python <install_dir>/python/pocket_sdr.py
 ```
 
 For more information about this application, please refer to [**pocket_sdr.py help**](https://github.com/tomojitakasu/PocketSDR/blob/master/doc/pocket_sdr_help.pdf).
+
+--------------------------------------------------------------------------------
+
+## **Web UI-based Real-Time GNSS SDR Receiver AP**
+
+Starting from version 0.20, Pocket SDR includes **pocket_web**, a real-time
+GNSS SDR receiver AP controlled from a Web UI in a browser. It provides the
+same receiver as pocket_trk and the same screens as pocket_sdr.py, but needs
+no GUI toolkit on the machine running the receiver, so it also suits a
+headless Raspberry Pi. To execute the AP:
+
+```
+$ cd <install_dir>/bin
+$ sudo ./pocket_web -web 8080
+```
+
+Then open `http://localhost:8080/` in a browser. The receiver starts stopped:
+set the input source, output streams and signals in the Input, Output and
+Signal Options pages, and press Start. The settings are saved when the
+receiver is stopped and when the AP exits, and are restored at the next
+start, so `-start` starts the receiver right away with them.
+
+To reach the AP from another PC, a tablet or a phone, bind it to all
+interfaces:
+
+```
+$ sudo ./pocket_web -web 0.0.0.0:8080
+```
+
+Note that the interface is unauthenticated and unencrypted. Use it in a
+trusted LAN only, or front it with a reverse proxy providing HTTPS and
+authentication.
+
+`run_sdr.sh` in the top directory starts and stops the server:
+
+```
+$ ./run_sdr.sh          # start
+$ ./run_sdr.sh -stop    # stop
+```
+
+Always stop the AP this way or with Ctrl-C. If the process is killed, the RF
+frontend is left streaming and needs a USB reset to recover (pocket_web
+recovers it at the next start, but the running capture is lost).
+
+For more information about this AP, please refer to [**Pocket SDR Command
+References**](https://github.com/tomojitakasu/PocketSDR/blob/master/doc/command_ref.pdf).
 
 --------------------------------------------------------------------------------
 
@@ -640,5 +689,11 @@ purposes, is prohibited.
   (NMEA, RTCM3, receiver log, IF data log), e.g. NMEA to a file and a TCP
   server simultaneously (`-nmea` / `-rtcm` / `-log` / `-raw` repeatable in
   pocket_trk; new Output Options UI in pocket_sdr.py).
+- **2026-08-08 (v0.20)**: Added a Web UI. The new AP **pocket_web** embeds an
+  HTTP + WebSocket server (src/sdr_web.c) and serves a static front end (html/,
+  plain JS, no dependency or build step), so a browser drives the whole
+  receiver, even on a headless Raspberry Pi, with the settings kept across
+  sessions (see doc/design_web_ui.md). Recovered a Pocket SDR FE left streaming
+  by a killed session. pocket_trk keeps its command line.
 
 --------------------------------------------------------------------------------

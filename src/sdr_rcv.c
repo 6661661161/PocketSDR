@@ -24,6 +24,7 @@
 //                   sdr_rcv_open_sdev(), sdr_rcv_open_file(),
 //                   sdr_rcv_str_stat()
 //                   add API sdr_rcv_write_str()
+//  2026-08-08  1.13 report an output stream open error as stream status error
 //
 #include "pocket_sdr.h"
 
@@ -253,7 +254,9 @@ void sdr_rcv_str_stat(sdr_rcv_t *rcv, int *stat)
     char msg[1024];
     for (int i = 0; i < SDR_MAX_STR; i++) {
         // -1: error, 0: close, 1: wait, 2: connect, 3: active
-        stat[i] = rcv && rcv->strs[i] ? strstat(rcv->strs[i], msg) : 0;
+        // a stream type without a stream means the stream open failed
+        stat[i] = !rcv ? 0 : rcv->strs[i] ? strstat(rcv->strs[i], msg) :
+            rcv->str_type[i] != SDR_STR_NONE ? -1 : 0;
     }
 }
 
@@ -1401,11 +1404,11 @@ int sdr_rcv_start(sdr_rcv_t *rcv, int dev, void *dp, const int *types,
             dev != SDR_DEV_SOAPY) {
             continue;
         }
+        rcv->str_type[i] = types[i]; // kept on error to report the status
         if (!(rcv->strs[i] = sdr_str_open(paths[i]))) {
             fprintf(stderr, "stream open error: %s\n", paths[i]);
             continue;
         }
-        rcv->str_type[i] = types[i];
         if (types[i] == SDR_STR_LOG) sdr_log_add_str(rcv->strs[i]);
     }
     char tstr[32];
@@ -1451,7 +1454,7 @@ int sdr_rcv_start(sdr_rcv_t *rcv, int dev, void *dp, const int *types,
 // get file path ---------------------------------------------------------------
 static int get_file_path(stream_t *str, char *file, int size)
 {
-    char buff[4096], *p = buff, *q;
+    char buff[4096] = "", *p = buff, *q; // strstatx() leaves it as is if closed
     
     strstatx(str, buff);
     if (!(p = strstr(p, "openpath= ")) || !(q = strstr(p + 10, "\n"))) {

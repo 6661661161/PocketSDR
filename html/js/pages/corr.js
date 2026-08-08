@@ -157,6 +157,9 @@ export class CorrPage {
         this.drawPlt2();
         this.drawPlt3();
     }
+    redraw() { // on resize
+        this.draw();
+    }
     drawPlt1() {
         const p = this.plt1, m = this.corr;
         const R = parseFloat(this.el.querySelector('#co-rng').value);

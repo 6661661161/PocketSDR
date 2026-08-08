@@ -49,7 +49,7 @@ extern "C" {
 
 // constants and macros ------------------------------------------------------
 #define SDR_LIB_NAME   "Pocket SDR" // library name
-#define SDR_LIB_VER    "0.19"   // library version
+#define SDR_LIB_VER    "0.20"   // library version
 #define SDR_MAX_RFCH   8        // max number of RF channels
 #define SDR_MAX_ARCH   8        // max number of array channels
 #define SDR_MAX_BUFF   (SDR_MAX_RFCH+SDR_MAX_ARCH) // max number of IF buffer

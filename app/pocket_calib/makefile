@@ -43,13 +43,16 @@ WARNOPT = -Wall -Wextra -Wno-unused-parameter -Wno-unused-but-set-variable
 
 CFLAGS = -O3 $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 
+# relink when a linked library is rebuilt
+LIBDEP = $(filter %.a,$(LDLIBS))
+
 TARGET = pocket_calib
 
 all: $(TARGET)
 
 pocket_calib: pocket_calib.o
 
-pocket_calib.o: $(SRC)/pocket_sdr.h
+pocket_calib.o: $(SRC)/pocket_sdr.h $(LIBDEP)
 
 clean:
 	rm -f $(TARGET) *.exe *.o *.stackdump

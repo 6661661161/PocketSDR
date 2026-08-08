@@ -1,10 +1,11 @@
 // Pocket SDR Web UI - Receiver page
 
-import {Plot, BG, FG, GR, LW, SYS_COLOR, SYS_COLOR2, cssVar, plotFont}
+import {Plot, BG, FG, GR, LW, WARN, SYS_COLOR, SYS_COLOR2, cssVar, plotFont}
     from '../plot.js';
 
 const D2R = Math.PI / 180;
-const LED_COLORS = ['#CC0000', '#F8F8F8', '#EE9900', '#006600', '#00CC00'];
+// stream status -1 to 3: error, close, wait, connect, active
+const LED_COLORS = [WARN, '#F8F8F8', '#EE9900', '#006600', '#00CC00'];
 const SYSTEMS = ['ALL', 'GPS', 'GLONASS', 'Galileo', 'QZSS', 'BeiDou',
     'NavIC', 'SBAS'];
 const SYS_ORDER = 'GREJCIS';
@@ -235,6 +236,9 @@ export class RcvPage {
     draw() {
         this.drawSky();
         this.drawCn0();
+    }
+    redraw() { // on resize
+        this.draw();
     }
     drawSky() {
         const cv = this.sky, dpr = window.devicePixelRatio || 1;

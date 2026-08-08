@@ -161,10 +161,14 @@ export class Plot {
     end() {
         const ctx = this.ctx;
         ctx.restore();
+        // frame on the same pixels as the grid lines at the axis limits
+        const fx0 = Math.round(this.ax[0]) + 0.5;
+        const fy0 = Math.round(this.ax[1]) + 0.5;
+        const fx1 = Math.round(this.ax[2]) + 0.5;
+        const fy1 = Math.round(this.ax[3]) + 0.5;
         ctx.strokeStyle = FG;
         ctx.lineWidth = LW;
-        ctx.strokeRect(this.ax[0] + 0.5, this.ax[1] + 0.5,
-            this.ax[2] - this.ax[0] - 1, this.ax[3] - this.ax[1] - 1);
+        ctx.strokeRect(fx0, fy0, fx1 - fx0, fy1 - fy0);
         ctx.font = this.font;
         ctx.fillStyle = FG;
         ctx.textAlign = 'center';
@@ -174,8 +178,8 @@ export class Plot {
             for (const x of tickList(this.xlim, this.xt)) {
                 const px = Math.round(this.xp(x)) + 0.5;
                 ctx.beginPath();
-                ctx.moveTo(px, this.ax[3]);
-                ctx.lineTo(px, this.ax[3] - 5);
+                ctx.moveTo(px, fy1);
+                ctx.lineTo(px, fy1 - 5);
                 ctx.stroke();
                 if (this.opt.xlabels !== false) {
                     ctx.fillText(this.opt.taxis ? timeLabel(x) :
@@ -189,8 +193,8 @@ export class Plot {
             for (const y of tickList(this.ylim, this.yt)) {
                 const py = Math.round(this.yp(y)) + 0.5;
                 ctx.beginPath();
-                ctx.moveTo(this.ax[0], py);
-                ctx.lineTo(this.ax[0] + 5, py);
+                ctx.moveTo(fx0, py);
+                ctx.lineTo(fx0 + 5, py);
                 ctx.stroke();
                 ctx.fillText(y.toFixed(dec(this.yt)), this.ax[0] - 3, py);
             }

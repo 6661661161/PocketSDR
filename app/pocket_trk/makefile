@@ -59,15 +59,18 @@ WARNOPT = -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-unused-f
 #CFLAGS = -O3 -march=native $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 CFLAGS = -O3 $(INCLUDE) $(WARNOPT) $(OPTIONS) -g
 
+# relink when a linked library is rebuilt
+LIBDEP = $(filter %.a,$(LDLIBS))
+
 TARGET = pocket_trk fftw_wisdom
 
 all: $(TARGET)
 
-pocket_trk: pocket_trk.o $(LIBSDR)
+pocket_trk: pocket_trk.o
 fftw_wisdom: fftw_wisdom.o
 
-pocket_trk.o: $(SRC)/pocket_sdr.h
-fftw_wisdom.o: $(SRC)/pocket_sdr.h
+pocket_trk.o: $(SRC)/pocket_sdr.h $(LIBDEP)
+fftw_wisdom.o: $(SRC)/pocket_sdr.h $(LIBDEP)
 
 clean:
 	rm -f $(TARGET) *.exe *.o *.obj *.stackdump
