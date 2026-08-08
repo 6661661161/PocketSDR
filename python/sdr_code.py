@@ -70,6 +70,7 @@
 #  2024-01-07  1.12 add signal G1OCD, G1OCP, G2OCP
 #  2024-01-12  1.13 add API sat_id()
 #  2024-12-19  1.14 fix sat_id() for BeiDou
+#  2026-08-08  1.15 fix sat_id() for BeiDou (B1C, B2A, B2I)
 #
 import numpy as np
 import scipy.fftpack as fft
@@ -1028,9 +1029,9 @@ def sat_id(sig, prn):
         return 'E%02d' % (prn)
     elif sig[0] == 'B':
         if prn < 1 or prn > 63: return '???'
-        if (sig[:3] == 'B1C' or sig[:3] == 'B2A') and (prn < 19 or prn > 58):
-            return '???'
-        if sig[:3] == 'B2I' and (prn < 1 or prn > 18): return '???'
+        #if (sig[:3] == 'B1C' or sig[:3] == 'B2A') and (prn < 19 or prn > 58):
+        #    return '???'
+        #if sig[:3] == 'B2I' and (prn < 1 or prn > 18): return '???'
         return 'C%02d' % (prn)
     elif sig[0] == 'I':
         if prn < 1 or prn > 14: return '???'
