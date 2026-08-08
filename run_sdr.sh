@@ -6,13 +6,16 @@
 # signal a background pocket_web.exe can catch. Plain kill is TerminateProcess
 # and leaves the RF frontend streaming, which needs a USB reset to recover.
 #
+# ps prints the arguments as well on macOS, so the pattern has to be kept out of
+# the command line of the processes doing the matching.
+#
 case $(uname -s) in
     MSYS*|MINGW*|CYGWIN*) SIG=-QUIT;;
     *) SIG=-TERM;;
 esac
 
 if [ "$1" = -stop ]; then
-    ps -e | awk '/pocket_web/{print $1}' | xargs -r kill $SIG
+    ps -e | grep -v grep | grep pocket_web | awk '{print $1}' | xargs -r kill $SIG
     for i in $(seq 20); do # wait for the device close before returning
         ps -e | grep -v grep | grep -q pocket_web || break
         sleep 0.5
