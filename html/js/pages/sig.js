@@ -76,6 +76,15 @@ function sat2prns(sys, sig, satno) {
     return satno;
 }
 
+// system of a "SIG:prns" entry (GPS, QZSS and SBAS share signal names) --------
+function sigSys(sig, prns) {
+    const cand = Object.keys(SYS_SIGS).filter(s => SYS_SIGS[s].includes(sig));
+    if (cand.length < 2) return cand[0] || '';
+    const prn = parseNums(prns)[0] || 0; // GPS 1-32, SBAS 120-158, QZSS 183-
+    const sys = prn >= 183 ? 'QZSS' : prn >= 120 ? 'SBAS' : 'GPS';
+    return cand.includes(sys) ? sys : cand[0];
+}
+
 // PRN list back to satellite number list --------------------------------------
 function prns2sat(sys, sig, prns) {
     if (sys == 'QZSS') {
@@ -176,28 +185,25 @@ export class SigPage {
             sec.querySelector('.sg-sys').checked = false;
             for (const e of sec.querySelectorAll('.sg-sig')) e.checked = false;
         }
-        // assign "SIG:prns" entries to systems (first unclaimed match wins)
+        // assign "SIG:prns" entries to their systems (the PRN tells them apart)
         let gloFcn = '', gloSlot = '';
         for (const ent of cfg.sigs.split(/\s+/)) {
             const [sig, prn] = ent.split(':');
             if (!sig || !prn) continue;
-            for (const sec of this.el.querySelectorAll('.sig-sec[data-sys]')) {
-                const sys = sec.dataset.sys;
-                if (!SYS_SIGS[sys].includes(sig)) continue;
-                const box = [...sec.querySelectorAll('.sg-sig')].find(
-                    e => e.dataset.sig == sig);
-                if (box.checked) continue; // claimed: try next system
-                box.checked = true;
-                sec.querySelector('.sg-sys').checked = true;
-                if (sys == 'GLONASS') {
-                    if (sig == 'G1CA' || sig == 'G2CA') gloFcn = gloFcn || prn;
-                    else gloSlot = gloSlot || prn;
-                }
-                else {
-                    const t = prns2sat(sys, sig, prn);
-                    if (t) sec.querySelector('.sg-prn').value = t;
-                }
-                break;
+            const sys = sigSys(sig, prn);
+            const sec = sys &&
+                this.el.querySelector(`.sig-sec[data-sys=${sys}]`);
+            if (!sec) continue;
+            [...sec.querySelectorAll('.sg-sig')].find(
+                e => e.dataset.sig == sig).checked = true;
+            sec.querySelector('.sg-sys').checked = true;
+            if (sys == 'GLONASS') {
+                if (sig == 'G1CA' || sig == 'G2CA') gloFcn = gloFcn || prn;
+                else gloSlot = gloSlot || prn;
+            }
+            else {
+                const t = prns2sat(sys, sig, prn);
+                if (t) sec.querySelector('.sg-prn').value = t;
             }
         }
         if (gloFcn || gloSlot) {
