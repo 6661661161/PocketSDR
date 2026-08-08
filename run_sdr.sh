@@ -14,10 +14,10 @@ esac
 if [ "$1" = -stop ]; then
     ps -e | awk '/pocket_web/{print $1}' | xargs -r kill $SIG
     for i in $(seq 20); do # wait for the device close before returning
-        ps -e | grep -q pocket_web | grep -q -v grep || break
+        ps -e | grep -v grep | grep -q pocket_web || break
         sleep 0.5
     done
-elif ps -e | grep -q pocket_web | grep -q -v grep; then
+elif ps -e | grep -v grep | grep -q pocket_web; then
     echo 'pocket_web already running.'
 elif [ "$1" = -start ]; then
     ./bin/pocket_web -start -web 0.0.0.0:8080 &
